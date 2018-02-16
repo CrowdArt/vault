@@ -92,7 +92,7 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
         uint targetValue = values[targetAsset];
 
         if(targetDiscountRate > 0) {
-            targetValue = targetValue * (1 - 100/targetDiscountRate);
+            targetValue = targetValue * (1 - targetDiscountRate/100);
         }
 
         if (srcValue == 0 || targetValue == 0) {
