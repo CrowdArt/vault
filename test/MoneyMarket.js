@@ -14,6 +14,8 @@ const PriceOracle = artifacts.require("./storage/PriceOracle.sol");
 const FaucetToken = artifacts.require("./token/FaucetToken.sol");
 const EtherToken = artifacts.require("./tokens/EtherToken.sol");
 const utils = require('./utils');
+const tokenAddrs = utils.tokenAddrs;
+
 const moment = require('moment');
 const toAssetValue = (value) => (value * 10 ** 9);
 const interestRateScale = (10 ** 16); // InterestRateStorage.sol interestRateScale
@@ -295,7 +297,7 @@ contract('MoneyMarket', function(accounts) {
       assert.equal(owner, web3.eth.accounts[0]);
     });
   });
-  
+
   describe('#saveBlockInterest', async () => {
     it('should snapshot the current balance', async () => {
       const testLedgerStorage = await TestLedgerStorage.new();
@@ -318,6 +320,32 @@ contract('MoneyMarket', function(accounts) {
     });
 
     it('should be called once per block unit');
+  });
+
+  describe('#getConvertedAssetValueWithDiscount', async () => {
+
+    describe('conversion in terms of a more valuable asset', async () => {
+      it("applies discount to target asset price", async () => {
+        await priceOracle.setAssetValue(tokenAddrs.BAT, toAssetValue(2) , {from: web3.eth.accounts[0]});
+        await priceOracle.setAssetValue(tokenAddrs.OMG, toAssetValue(5) , {from: web3.eth.accounts[0]});
+        const balance = await moneyMarket.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 500);
+        // compare to 400000000000000000 in non-discounted test in priceOracle.js of getConvertedAssetValue
+        // we expect to get more of the target asset here because its price has been discounted
+        assert.equal(balance.valueOf(), 421052631578947368); // (1 * 10^18)*2/(5*.95) or 4.444....e17
+      });
+    });
+
+    describe('conversion in terms of a less valuable asset', async () => {
+      it("returns expected amount", async () => {
+        // Asset1 = 5 * 10E18 (aka 5 Eth)// Asset2 = 2 * 10E18 (aka 2 Eth)
+        await priceOracle.setAssetValue(tokenAddrs.BAT, toAssetValue(5), {from: web3.eth.accounts[0]});
+        await priceOracle.setAssetValue(tokenAddrs.OMG, toAssetValue(2), {from: web3.eth.accounts[0]});
+        const balance = await moneyMarket.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 500);
+        // compare to 2500000000000000000 in non-discounted test in priceOracle.js getConvertedAssetValue
+        // we expect to get more of the target asset here because its price has been discounted
+        assert.equal(balance.valueOf(), 2631578947368421052); // (1 * 10^18)*5/(2*.95) or 2.63157894736842E18
+      });
+    });
   });
 
   // TODO: Make sure we store correct rates for all operations
