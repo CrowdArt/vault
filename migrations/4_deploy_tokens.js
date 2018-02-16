@@ -5,7 +5,7 @@ const FaucetTokenZRX = artifacts.require("FaucetTokenZRX.sol");
 
 // BAT (decimals 10) 2500, DRGN (decimals 10) 500, OMG (decimals 18) 75, ZRX (decimals 18) 500
 const tokens = [
-  [ FaucetTokenBAT, 2500e10 ],
+  [ FaucetTokenBAT, 2500e18 ],
   [ FaucetTokenDRGN, 500e10 ],
   [ FaucetTokenOMG, 75e18 ],
   [ FaucetTokenZRX, 500e18 ],

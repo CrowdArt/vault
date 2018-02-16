@@ -148,6 +148,34 @@ async function mineBlock(web3) {
   });
 }
 
+async function evmSnapshot(web3) {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.sendAsync({
+      jsonrpc: "2.0",
+      method: "evm_snapshot",
+      params: [],
+      id: new Date().getTime()
+    }, (err, result) => {
+      if(err){ return reject(err) }
+      return resolve(result)
+    });
+  });
+}
+
+async function evmRestore(web3, snapshot) {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.sendAsync({
+      jsonrpc: "2.0",
+      method: "evm_restore",
+      params: [snapshot],
+      id: new Date().getTime()
+    }, (err, result) => {
+      if(err){ return reject(err) }
+      return resolve(result)
+    });
+  });
+}
+
 async function mineBlocks(web3, blocksToMine) {
   var promises = [];
 
@@ -168,18 +196,6 @@ async function toNumber(maybePromiseMaybeDecimal) {
   }
 }
 
-async function takeSnapshot(moneyMarket) {
-  const snapshot = {};
-
-  await Promise.all(storageTypes.map(async ([contract, _, constructor]) => {
-    if (moneyMarket[contract] !== undefined) {
-      snapshot[contract] = constructor.at(await moneyMarket[contract].call());
-    }
-  }));
-
-  return snapshot;
-}
-
 module.exports = {
   mineBlocks: mineBlocks,
   annualBPSToScaledPerBlockRate: annualBPSToScaledPerBlockRate,
@@ -190,24 +206,9 @@ module.exports = {
   // Simple function to stop futzing over numbers and promises in our tests
   toNumber: toNumber,
 
-  takeSnapshot: takeSnapshot,
+  takeSnapshot: evmSnapshot,
 
-  restoreSnapshot: async function(moneyMarket, snapshot) {
-    const newSnapshot = takeSnapshot(moneyMarket);
-    const promises = [];
-
-    await storageTypes.forEach(async ([contract, fun]) => {
-      if (newSnapshot[contract] !== snapshot[contract].address) {
-        promises.push(moneyMarket[fun](snapshot[contract].address));
-      }
-
-      if (snapshot[contract].allowed && await snapshot[contract].allowed.call() != moneyMarket.address) {
-        promises.push(snapshot[contract].allow(moneyMarket.address));
-      }
-    });
-
-    await Promise.all(promises);
-  },
+  restoreSnapshot: evmRestore,
 
   allowAll: async function(contracts, allowed) {
     const restores = await Promise.all(contracts.map(async (contract) => {
@@ -328,7 +329,7 @@ module.exports = {
   },
 
   ledgerAccountBalance: async function(ledger, account, token) {
-    return (await ledger.getSupplyBalance.call(account, token)).toNumber();
+    return await toNumber(ledger.getSupplyBalance.call(account, token));
   },
 
   tokenBalance: async function(token, account) {

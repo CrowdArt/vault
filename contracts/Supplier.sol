@@ -130,7 +130,7 @@ contract Supplier is Graceful, Owned, Ledger {
       * @param asset The asset to check the balance of
       * @return The balance (with interest)
       */
-    function getSupplyBalance(address customer, address asset) public view returns (uint256) {
+    function getSupplyBalance(address customer, address asset) public returns (uint256) {
         if (!saveBlockInterest(asset, LedgerAccount.Supply)) {
             revert();
         }
