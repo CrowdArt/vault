@@ -174,11 +174,6 @@ contract Borrower is Graceful, Owned, Ledger {
             return 0;
         }
 
-        if (!saveBlockInterest(borrowedAsset, LedgerAccount.Borrow)) {
-            failure("Borrower::FailedToSaveBlockInterest", uint256(borrowedAsset), uint256(LedgerAccount.Borrow));
-            return 0;
-        }
-
         // true up borrow balance first
         if (!accrueBorrowInterest(borrower, borrowedAsset)) {
             return 0;
