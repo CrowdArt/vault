@@ -260,7 +260,7 @@ contract('MoneyMarket', function(accounts) {
       await moneyMarket.customerBorrow(etherToken.address, 20, {from: web3.eth.accounts[1]});
       await moneyMarket.customerWithdraw(etherToken.address, 20, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
 
-      assert.equal(await utils.toNumber(moneyMarket.getMaxBorrowAvailable(web3.eth.accounts[1])), 160);
+      assert.equal(await utils.toNumber(moneyMarket.getMaxBorrowAvailable.call(web3.eth.accounts[1])), 160);
     });
   });
 
