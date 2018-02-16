@@ -350,7 +350,7 @@ contract Borrower is Graceful, Owned, Ledger {
         int256 netValueEquivalent = int256(ve.supplyValue - ve.borrowValue);
 
         int256 requiredValue = int256(ve.borrowValue / borrowStorage.minimumCollateralRatio());
-        if(netValueEquivalent > requiredValue) {
+        if(netValueEquivalent >= requiredValue) {
             return 0;
         }
         return requiredValue - netValueEquivalent;
