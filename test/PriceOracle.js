@@ -142,7 +142,7 @@ contract('PriceOracle', function(accounts) {
           await priceOracle.setAssetValue(tokenAddrs.OMG, toAssetValue(5) , {from: web3.eth.accounts[0]});
           // function getConvertedAssetValueWithDiscount(address srcAsset, uint256 srcAssetAmount, address targetAsset, uint8 targetDiscountRate) public view returns(uint) {
           // address srcAsset, uint256 srcAssetAmount, address targetAsset, uint8 targetDiscountRate
-          const balance = await priceOracle.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 5);
+          const balance = await priceOracle.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 500);
           // compare to 400000000000000000 in non-discounted test above of getConvertedAssetValue
           // we expect to get more of the target asset here because its price has been discounted
           assert.equal(balance.valueOf(), 421052631578947368); // (1 * 10^18)*2/(5*.95) or 4.444....e17
@@ -154,7 +154,7 @@ contract('PriceOracle', function(accounts) {
           // Asset1 = 5 * 10E18 (aka 5 Eth)// Asset2 = 2 * 10E18 (aka 2 Eth)
           await priceOracle.setAssetValue(tokenAddrs.BAT, toAssetValue(5), {from: web3.eth.accounts[0]});
           await priceOracle.setAssetValue(tokenAddrs.OMG, toAssetValue(2), {from: web3.eth.accounts[0]});
-          const balance = await priceOracle.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 5);
+          const balance = await priceOracle.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 500);
           // compare to 2500000000000000000 in non-discounted test above of getConvertedAssetValue
           // we expect to get more of the target asset here because its price has been discounted
           assert.equal(balance.valueOf(), 2631578947368421052); // (1 * 10^18)*5/(2*.95) or 2.63157894736842E18
@@ -163,9 +163,10 @@ contract('PriceOracle', function(accounts) {
   });
 
   describe('#scaledDiscountPrice', async () => {
+
       it("returns expected amount", async () => {
-          const discountedPrice = await priceOracle.scaledDiscountPrice.call(10, 5);
-          assert.equal(discountedPrice.valueOf(), 950000000000000000);
+          const discountedPrice = await priceOracle.scaledDiscountPrice.call(10, 500);
+          assert.equal(discountedPrice.valueOf(), 9500000000000);
       });
   });
 });

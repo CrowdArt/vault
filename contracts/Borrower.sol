@@ -16,10 +16,7 @@ contract Borrower is Graceful, Owned, Ledger {
     PriceOracle public priceOracle;
     BorrowStorage public borrowStorage;
 
-    /**
-      * @notice liquidationDiscountNumerator is the value that, when divided by 100, represents the discount rate for liquidations
-      */
-    uint8 public liquidationDiscountNumerator = 2;
+    uint16 public liquidationDiscountRateBPS = 200;
 
     function Borrower () public {}
 
@@ -56,19 +53,19 @@ contract Borrower is Graceful, Owned, Ledger {
     }
 
     /**
-      * @notice `setLiquidationDiscountNumerator` sets the discount rate on price of borrowed asset when liquidating a loan
-      * @param numerator will be divided by 100 for the discount rate.  Must be <= 10.
+      * @notice `setLiquidationDiscountNumeratorBPS` sets the discount rate on price of borrowed asset when liquidating a loan
+      * @param basisPoints will be divided by 10000 to calculate the discount rate.  Must be <= 3000.
       * @return Success or failure of operation
       */
-    function setLiquidationDiscountNumerator(uint8 numerator) public returns (bool) {
+    function setLiquidationDiscountRateBPS(uint16 basisPoints) public returns (bool) {
         if (!checkOwner()) {
             return false;
         }
-        if(numerator > 30) {
-            return failure("Borrower::InvalidLiquidationDiscount", uint256(numerator));
+        if(basisPoints > 3000) {
+            return failure("Borrower::InvalidLiquidationDiscount", uint256(basisPoints));
         }
 
-        liquidationDiscountNumerator = numerator;
+        liquidationDiscountRateBPS = basisPoints;
         return true;
     }
 
@@ -203,7 +200,7 @@ contract Borrower is Graceful, Owned, Ledger {
         // How much collateral should the liquidator receive?
         uint256 seizeCollateralAmount =
             priceOracle.getConvertedAssetValueWithDiscount(borrowedAsset, borrowedAssetAmount,
-                assetToLiquidate, liquidationDiscountNumerator);
+                assetToLiquidate, liquidationDiscountRateBPS);
 
         // Make sure borrower has enough of the requested collateral
         uint256 collateralBalance = getBalance(borrower, LedgerAccount.Supply, assetToLiquidate);

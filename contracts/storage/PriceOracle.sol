@@ -13,7 +13,10 @@ import "../base/ArrayHelper.sol";
  */
 contract PriceOracle is Owned, Allowed, ArrayHelper {
     int public assetMultiplier = 10 ** 9;
-    uint64 constant discountRateScale = 10 ** 17;
+    uint64 public constant discountRateScale = 10 ** 12;
+    // Given a real number decimal, to convert it to basis points you multiply by 10000.
+    // For example, we know 100 basis points = 1% = .01.  We get the basis points from the decimal: .01 * 10000 = 100
+    uint16 constant basisPointMultiplier = 10000;
     mapping(address => uint) public values;
     mapping(address => uint) public lastUpdatedAtBlock;
     address[] public assets;
@@ -79,18 +82,18 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
      * @param srcAsset The address of the asset to query
      * @param srcAssetAmount The amount in base units of the asset
      * @param targetAsset The asset in which we want to value srcAsset
-     * @param targetDiscountRate the unscaled numerator for percentage discount to be applied to current PriceOracle
-     * price of targetAsset (aka for a discount of 5% it should be 5)
+     * @param targetDiscountRateBPS the unscaled numerator for basis points discount to be applied to current PriceOracle
+     * price of targetAsset (aka for a discount of 5% it should be 500)
      * @return value The value in wei of the asset, or zero.
      */
-    function getConvertedAssetValueWithDiscount(address srcAsset, uint256 srcAssetAmount, address targetAsset, uint8 targetDiscountRate) public view returns(uint) {
+    function getConvertedAssetValueWithDiscount(address srcAsset, uint256 srcAssetAmount, address targetAsset, uint16 targetDiscountRateBPS) public view returns(uint) {
 
         if(srcAsset == targetAsset) {
             return srcAssetAmount;
         }
 
         uint scaledSrcValue = scaledDiscountPrice(values[srcAsset], 0);
-        uint scaledTargetValue = scaledDiscountPrice(values[targetAsset], targetDiscountRate);
+        uint scaledTargetValue = scaledDiscountPrice(values[targetAsset], targetDiscountRateBPS);
 
         if (scaledSrcValue == 0 || scaledTargetValue == 0) {
             return 0; // not supported
@@ -102,12 +105,12 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
     /**
       * @notice `scaledDiscountPrice`
       * @param price value from PriceOracle for an asset
-      * @param unscaledDiscountRate the numerator of a percentage fraction, e.g for 5% it would be 5. 0 is a valid discount.
+      * @param unscaledDiscountRateBPS the numerator of a basis points fraction, e.g it should be 500 to represent 5%. 0 is a valid discount.
       * @return the scaled discount price after applying the discount rate
       */
-    function scaledDiscountPrice(uint price, uint8 unscaledDiscountRate) public pure returns (uint) {
+    function scaledDiscountPrice(uint price, uint16 unscaledDiscountRateBPS) public view returns (uint) {
 
-        return (( 100*discountRateScale - (unscaledDiscountRate * discountRateScale)) * price) / 100;
+        return (( basisPointMultiplier*discountRateScale - (unscaledDiscountRateBPS * discountRateScale)) * price) / basisPointMultiplier;
     }
 
     /**
