@@ -108,7 +108,7 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
       * @param unscaledDiscountRateBPS the numerator of a basis points fraction, e.g it should be 500 to represent 5%. 0 is a valid discount.
       * @return the scaled discount price after applying the discount rate
       */
-    function scaledDiscountPrice(uint price, uint16 unscaledDiscountRateBPS) public view returns (uint) {
+    function scaledDiscountPrice(uint price, uint16 unscaledDiscountRateBPS) public pure returns (uint) {
 
         return (( basisPointMultiplier*discountRateScale - (unscaledDiscountRateBPS * discountRateScale)) * price) / basisPointMultiplier;
     }
