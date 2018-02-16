@@ -67,6 +67,22 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
      * @return value The value in wei of the asset, or zero.
      */
     function getConvertedAssetValue(address srcAsset, uint256 srcAssetAmount, address targetAsset) public view returns(uint) {
+        return getConvertedAssetValueWithDiscount(srcAsset, srcAssetAmount, targetAsset, 0);
+    }
+
+    /**
+     * `getConvertedAssetValueWithDiscount` returns the PriceOracle's view of the current
+     * value of srcAsset in terms of targetAsset, after applying the specified discount to
+     * the oracle's targetAsset value. Returns 0 if either asset is unknown.
+     *
+     * @param srcAsset The address of the asset to query
+     * @param srcAssetAmount The amount in base units of the asset
+     * @param targetAsset The asset in which we want to value srcAsset
+     * @param targetDiscountRate the numerator for percentage discount to be applied to current PriceOracle price of targetAsset
+     *
+     * @return value The value in wei of the asset, or zero.
+     */
+    function getConvertedAssetValueWithDiscount(address srcAsset, uint256 srcAssetAmount, address targetAsset, uint8 targetDiscountRate) public view returns(uint) {
 
         if(srcAsset == targetAsset) {
             return srcAssetAmount;
@@ -74,6 +90,10 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
 
         uint srcValue = values[srcAsset];
         uint targetValue = values[targetAsset];
+
+        if(targetDiscountRate > 0) {
+            targetValue = targetValue * (1 - 100/targetDiscountRate);
+        }
 
         if (srcValue == 0 || targetValue == 0) {
             return 0; // not supported
