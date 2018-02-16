@@ -64,7 +64,7 @@ contract Borrower is Graceful, Owned, Ledger {
         if (!checkOwner()) {
             return false;
         }
-        if(numerator > 10) {
+        if(numerator > 30) {
             return failure("Borrower::InvalidLiquidationDiscount", uint256(numerator));
         }
 
