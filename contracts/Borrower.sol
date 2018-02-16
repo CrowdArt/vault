@@ -318,7 +318,7 @@ contract Borrower is Graceful, Owned, Ledger {
       * @return boolean true if the requested amount is valid and false otherwise
       */
     function validCollateralRatio(uint256 borrowAmount, address borrowAsset) internal returns (bool) {
-        // TODO I believe this is bogus if borrower has loans for multiple assets
+        // TODO valid if borrower has loans for multiple assets?
         return validCollateralRatioNotSender(msg.sender, borrowAmount, borrowAsset);
     }
 
@@ -335,7 +335,7 @@ contract Borrower is Graceful, Owned, Ledger {
         if(valueEquivalent <= 0) {
             return false;
         }
-        // TODO I believe this is bogus if borrower has loans for multiple assets
+        // TODO valid if borrower has loans for multiple assets?
         return (uint256(valueEquivalent) * borrowStorage.minimumCollateralRatio()) >= priceOracle.getAssetValue(borrowAsset, borrowAmount);
     }
 
