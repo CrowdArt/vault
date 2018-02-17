@@ -231,56 +231,56 @@ contract('MoneyMarket', function(accounts) {
   });
 
   describe('#liquidate', () => {
-    it('gives collateral to liquidator', async () => {
+    it('gives collateral to liquidator in exchange for loan asset', async () => {
 
       const system = 0;
       const pigSupplier = 3; //supplies PIG so it's available to be borrowed
       const borrower = 1; //0; supplies eth for collateral and gets PIG
       const liquidator = 2; // supplies PIG for loan and gets ETH
 
-      // Allocate 100 pig tokens to pigSupplier and 75 to liquidator
-      await faucetToken.allocateTo(web3.eth.accounts[pigSupplier], 100, {from: web3.eth.accounts[system]});
-      await faucetToken.allocateTo(web3.eth.accounts[liquidator], 75, {from: web3.eth.accounts[system]});
+      // Allocate 1000 pig tokens to pigSupplier and 750 to liquidator
+      await faucetToken.allocateTo(web3.eth.accounts[pigSupplier], 1000, {from: web3.eth.accounts[system]});
+      await faucetToken.allocateTo(web3.eth.accounts[liquidator], 750, {from: web3.eth.accounts[system]});
 
-      // Approve pigSupplier wallet for 90 tokens and liquidator for 65
-      await faucetToken.approve(moneyMarket.address, 90, {from: web3.eth.accounts[pigSupplier]});
-      await faucetToken.approve(moneyMarket.address, 65, {from: web3.eth.accounts[liquidator]});
+      // Approve pigSupplier for 900 tokens and liquidator for 650
+      await faucetToken.approve(moneyMarket.address, 900, {from: web3.eth.accounts[pigSupplier]});
+      await faucetToken.approve(moneyMarket.address, 650, {from: web3.eth.accounts[liquidator]});
 
       // Verify initial state
-      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[pigSupplier]), 100);
-      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 75);
+      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[pigSupplier]), 1000);
+      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 750);
 
       // Supply those tokens
-      moneyMarket.customerSupply(faucetToken.address, 90, {from: web3.eth.accounts[pigSupplier]});
-      moneyMarket.customerSupply(faucetToken.address, 65, {from: web3.eth.accounts[liquidator]});
+      moneyMarket.customerSupply(faucetToken.address, 900, {from: web3.eth.accounts[pigSupplier]});
+      moneyMarket.customerSupply(faucetToken.address, 650, {from: web3.eth.accounts[liquidator]});
 
-      // WETH to borrower that they supply as collateral
-      await utils.supplyEth(moneyMarket, etherToken, 5, web3.eth.accounts[borrower]);
+      // 100000 wei WETH to borrower that they supply as collateral
+      await utils.supplyEth(moneyMarket, etherToken, 100000, web3.eth.accounts[borrower]);
 
       // verify balance in ledger
-      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[pigSupplier], faucetToken.address), 90);
-      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 65);
-      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[borrower], etherToken.address), 5);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[pigSupplier], faucetToken.address), 900);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 650);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[borrower], etherToken.address), 100000);
 
       // Make pig token borrowable
       await borrowStorage.addBorrowableAsset(faucetToken.address, {from: web3.eth.accounts[system]});
 
       // Make pig token cheap so loan is easy to get
       await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1) , {from: web3.eth.accounts[system]});
-      await moneyMarket.customerBorrow(faucetToken.address, 2, {from: web3.eth.accounts[borrower]});
+      await moneyMarket.customerBorrow(faucetToken.address, 200, {from: web3.eth.accounts[borrower]});
       // Withdraw borrowed asset
-      await moneyMarket.customerWithdraw(faucetToken.address, 2, web3.eth.accounts[borrower], {from: web3.eth.accounts[borrower]});
+      await moneyMarket.customerWithdraw(faucetToken.address, 200, web3.eth.accounts[borrower], {from: web3.eth.accounts[borrower]});
 
       await utils.mineBlocks(web3, 1);
-      // Now make pig token more expensive, so borrow falls under the collateral requirement
-      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(3) , {from: web3.eth.accounts[system]});
+      // Now make pig token 1500x more expensive, so borrow falls under the collateral requirement
+      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1500) , {from: web3.eth.accounts[system]});
 
-      await moneyMarket.liquidateCollateral(web3.eth.accounts[borrower], faucetToken.address, 1, etherToken.address, {from: web3.eth.accounts[liquidator]});
+      await moneyMarket.liquidateCollateral(web3.eth.accounts[borrower], faucetToken.address, 50, etherToken.address, {from: web3.eth.accounts[liquidator]});
 
-      // liquidator deposited 65 pig tokens and spent 1 on liquidation, so should have 64.
-      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 64);
-      // and gained 3 eth: 0+3 (actually, this is wrong because of discount factor- should get more than 3, but I'm using micro amounts)
-      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], etherToken.address), 3);
+      // liquidator deposited 650 pig tokens and spent 50 wei on liquidation, so should have 600.
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 600);
+      // and gained (1500 * 50) / .98 = 75,000 / 0.98 = 76,530.6122449 = 76530 wei weth
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], etherToken.address), 76530);
     });
   });
 

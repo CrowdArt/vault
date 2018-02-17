@@ -157,12 +157,12 @@ contract Borrower is Graceful, Owned, Ledger {
 
         // Do basic checks first before running up gas costs.
         if (borrowedAsset == assetToLiquidate) {
-            failure("Borrower::CollateralSameAsBorrow", uint256(assetToLiquidate), uint256(borrowedAsset));
+            failure("Liquidation::CollateralSameAsBorrow", uint256(assetToLiquidate), uint256(borrowedAsset));
             return 0;
         }
 
         if (borrowedAssetAmount == 0) {
-            failure("Borrower::ZeroBorrowDeliveryAmount", uint256(borrowedAsset));
+            failure("Liquidation::ZeroBorrowDeliveryAmount", uint256(borrowedAsset));
             return 0;
         }
 
@@ -172,7 +172,7 @@ contract Borrower is Graceful, Owned, Ledger {
         // large balance of borrowedAsset who wish to liquidate multiple under-collateralized borrows.
         uint256 liquidatorBalance = getBalance(msg.sender, LedgerAccount.Supply, borrowedAsset);
         if (liquidatorBalance < borrowedAssetAmount) {
-            failure("Borrower::InsufficientReplacementBalance", liquidatorBalance, uint256(borrowedAssetAmount));
+            failure("Liquidation::InsufficientReplacementBalance", liquidatorBalance, uint256(borrowedAssetAmount));
             return 0;
         }
 
@@ -184,16 +184,16 @@ contract Borrower is Graceful, Owned, Ledger {
         uint256 borrowBalance = getBalance(borrower, LedgerAccount.Borrow, borrowedAsset);
 
         // Only check shortfall after truing up borrow balance.
-        int256 shortfall = collateralShortfall(borrower);
+        uint256 shortfall = collateralShortfall(borrower);
         // Only allow conversion if there is a non-zero shortfall
-        if (shortfall <= 0) {
-            failure("Borrower::ValidCollateralRatio", uint256(borrower), uint256(shortfall * -1));
+        if (shortfall == 0) {
+            failure("Liquidation::ValidCollateralRatio", uint256(borrower));
             return 0;
         }
 
         // Disallow liquidation that exceeds current balance
         if (borrowedAssetAmount > borrowBalance) {
-            failure("Borrower::ExcessReplacementAmount", uint256(borrowedAssetAmount), uint(borrowBalance));
+            failure("Liquidation::ExcessReplacementAmount", uint256(borrowedAssetAmount), uint(borrowBalance));
             return 0;
         }
 
@@ -210,7 +210,7 @@ contract Borrower is Graceful, Owned, Ledger {
         // Make sure borrower has enough of the requested collateral
         uint256 collateralBalance = getBalance(borrower, LedgerAccount.Supply, assetToLiquidate);
         if(collateralBalance < seizeCollateralAmount) {
-            failure("Borrower::InsufficientLiquidationCollateral", collateralBalance, seizeCollateralAmount);
+            failure("Liquidation::InsufficientCollateral", collateralBalance, seizeCollateralAmount);
             return 0;
         }
 
@@ -341,20 +341,31 @@ contract Borrower is Graceful, Owned, Ledger {
             return false;
         }
         // TODO valid if borrower has loans for multiple assets?
-        return (uint256(valueEquivalent) * borrowStorage.minimumCollateralRatio()) >= priceOracle.getAssetValue(borrowAsset, borrowAmount);
+        uint valueTimesRatio = (uint256(valueEquivalent) * borrowStorage.minimumCollateralRatio());
+        uint assetValue = priceOracle.getAssetValue(borrowAsset, borrowAmount);
+        // failure("Debug::validCollateralRatioNotSender", uint256(valueTimesRatio), uint256(assetValue));
+        return valueTimesRatio >= assetValue;
     }
 
     /**
       * @notice `collateralShortfall` returns eth equivalent value of collateral needed to bring borrower to a valid collateral ratio,
       * @param borrower account to check
-      * @return the collateral shortfall value, 0 or negative means borrower has enough collateral
+      * @return the collateral shortfall value, or 0 if borrower has enough collateral
       */
-    function collateralShortfall(address borrower) public returns (int256) {
+    function collateralShortfall(address borrower) public returns (uint256) {
         ValueEquivalents memory ve = getValueEquivalents(borrower);
-        int256 netValueEquivalent = int256(ve.supplyValue - ve.borrowValue);
 
-        int256 requiredValue = int256(ve.borrowValue / borrowStorage.minimumCollateralRatio());
-        return requiredValue - netValueEquivalent;
+        // Example: 1000 borrows value / 2 ratio = 500 requiredSupplyValue
+        uint256 requiredSupplyValue = ve.borrowValue / borrowStorage.minimumCollateralRatio();
+        uint256 result = 0;
+
+        if(ve.supplyValue >= requiredSupplyValue) {
+            result = 0;
+        } else {
+            result = requiredSupplyValue - ve.supplyValue;
+        }
+        // failure("Debug::collateralShortfall", requiredSupplyValue, ve.supplyValue, ve.borrowValue, result);
+        return result;
     }
 
     // There are places where it is useful to have both total supplyValue and total borrowValue.
@@ -414,6 +425,8 @@ contract Borrower is Graceful, Owned, Ledger {
             return 0; // not supported
         }
 
+        // since we have discount scaling in both the numerator and the denominator, they cancel each other out
+        // and we do not need an explicit de-scale operation.
         return (scaledSrcValue * srcAssetAmount) / scaledTargetValue;
     }
 
