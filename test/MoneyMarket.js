@@ -234,43 +234,61 @@ contract('MoneyMarket', function(accounts) {
 
       const system = 0;
       const pigSupplier = 3; //supplies PIG so it's available to be borrowed
-      const borower = 1; //0; supplies eth for collateral and gets PIG
+      const borrower = 1; //0; supplies eth for collateral and gets PIG
       const liquidator = 2; // supplies PIG for loan and gets ETH
 
-      // Supply PIG so it can be borrowed.
-      console.log("A");
-      await faucetToken.approve(moneyMarket.address, 100, {from: web3.eth.accounts[pigSupplier]});
-      console.log("B");
-      await moneyMarket.customerSupply(faucetToken.address, 100, {from: web3.eth.accounts[pigSupplier]});
+      // Allocate 100 pig tokens to pigSupplier and 75 to liquidator
+      await faucetToken.allocateTo(web3.eth.accounts[pigSupplier], 100, {from: web3.eth.accounts[system]});
+      await faucetToken.allocateTo(web3.eth.accounts[liquidator], 75, {from: web3.eth.accounts[system]});
 
-      console.log("C");
-      // Give PIG to liquidator so they can replenish the loan
-      await faucetToken.allocateTo(web3.eth.accounts[liquidator], 200, {from: web3.eth.accounts[system]});
-      await faucetToken.approve(moneyMarket.address, 200, {from: web3.eth.accounts[liquidator]});
-      await moneyMarket.customerSupply(faucetToken.address, 200, {from: web3.eth.accounts[liquidator]});
+      // Approve pigSupplier wallet for 90 tokens and liquidator for 65
+      await faucetToken.approve(moneyMarket.address, 90, {from: web3.eth.accounts[pigSupplier]});
+      await faucetToken.approve(moneyMarket.address, 65, {from: web3.eth.accounts[liquidator]});
+
+      // Verify initial state
+      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[pigSupplier]), 100);
+      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 75);
+
+      // Supply those tokens
+      // TODO Use Supplier instead.
+      moneyMarket.customerSupply(faucetToken.address, 90, {from: web3.eth.accounts[pigSupplier]});
+      moneyMarket.customerSupply(faucetToken.address, 65, {from: web3.eth.accounts[liquidator]});
+      // await supplierWallet.supplyAsset(faucetToken.address, 90, {from: web3.eth.accounts[pigSupplier]});
+      // await liquidatorWallet.supplyAsset(faucetToken.address, 65, {from: web3.eth.accounts[liquidator]});
+
+      // WETH to borrower that they supply as collateral
+      await utils.supplyEth(moneyMarket, etherToken, 5, web3.eth.accounts[borrower]);
+
+      // verify balance in ledger
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[pigSupplier], faucetToken.address), 90);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 65);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[borrower], etherToken.address), 5);
+
+      // Make pig token borrowable
       await borrowStorage.addBorrowableAsset(faucetToken.address, {from: web3.eth.accounts[system]});
 
       console.log("D");
-      // WETH to accounts[0] that they supply as collateral
-      await utils.supplyEth(moneyMarket, etherToken, 30, web3.eth.accounts[borower]);
-      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1) , {from: web3.eth.accounts[system]});
-      await moneyMarket.customerBorrow(faucetToken.address, 30, {from: web3.eth.accounts[borower]});
 
-      // Make sure liquidator has balance of token
-      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 200);
+      // Make pig token cheap
+      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1) , {from: web3.eth.accounts[system]});
+      await moneyMarket.customerBorrow(faucetToken.address, 2, {from: web3.eth.accounts[borrower]});
 
       console.log("E");
       await utils.mineBlocks(web3, 1);
       console.log("F");
-      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(5) , {from: web3.eth.accounts[system]});
+      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(3) , {from: web3.eth.accounts[system]});
       console.log("G");
 
-      // GracefulFailure(errorMessage: Borrower::ValidCollateralRatio, values: 2.98465397009183236821697531246492154186639677371e+47)
-      await moneyMarket.liquidateCollateral(web3.eth.accounts[borower], faucetToken.address, 1, etherToken.address, {from: web3.eth.accounts[liquidator]});
-
-      // verify balances in W-Eth
-      // assert.equal(await utils.tokenBalance(etherToken, tokenStore.address), 80);
-      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 180); // started with 200 but gave 20 toward loan
+      await moneyMarket.liquidateCollateral(web3.eth.accounts[borrower], faucetToken.address, 1, etherToken.address, {from: web3.eth.accounts[borrower]});
+      console.log("H");
+      /*
+      1) Contract: MoneyMarket #liquidate gives collateral to liquidator:
+     AssertionError: expected 10 to equal 89
+       */
+      // liquidator deposited 65 pig tokens and spent 1 on liquidation, so should have 64.
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 64);
+      // and gained 3 eth: 0+3 (this is wrong because of discount factor)
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], etherToken.address), 3);
     });
   });
 
