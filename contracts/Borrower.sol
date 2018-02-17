@@ -22,6 +22,7 @@ contract Borrower is Graceful, Owned, Ledger {
     uint16 constant basisPointMultiplier = 10000;
 
     uint16 public liquidationDiscountRateBPS = 200;
+    uint16 public constant maxLiquidationDiscountRateBPS = 3000;
 
     function Borrower () public {}
 
@@ -59,14 +60,14 @@ contract Borrower is Graceful, Owned, Ledger {
 
     /**
       * @notice `setLiquidationDiscountNumeratorBPS` sets the discount rate on price of borrowed asset when liquidating a loan
-      * @param basisPoints will be divided by 10000 to calculate the discount rate.  Must be <= 3000.
+      * @param basisPoints will be divided by 10000 to calculate the discount rate.  Must be <= maxLiquidationDiscountRateBPS.
       * @return Success or failure of operation
       */
     function setLiquidationDiscountRateBPS(uint16 basisPoints) public returns (bool) {
         if (!checkOwner()) {
             return false;
         }
-        if(basisPoints > 3000) {
+        if(basisPoints > maxLiquidationDiscountRateBPS) {
             return failure("Borrower::InvalidLiquidationDiscount", uint256(basisPoints));
         }
 
