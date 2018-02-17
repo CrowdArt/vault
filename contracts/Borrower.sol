@@ -88,9 +88,7 @@ contract Borrower is Graceful, Owned, Ledger {
         }
 
         if (!validCollateralRatio(amount, asset)) {
-            failure("Borrower::InvalidCollateralRatio", uint256(asset), uint256(amount),
-                uint256(priceOracle.getAssetValue(asset, amount)), uint256(getValueEquivalent(msg.sender)));
-            return false;
+            return false; // validCollateralRatio generates a graceful failure with more detail
         }
 
         if (!saveBlockInterest(asset, LedgerAccount.Borrow)) {
@@ -305,16 +303,39 @@ contract Borrower is Graceful, Owned, Ledger {
     }
 
     /**
-      * @notice `getMaxBorrowAvailable` gets the maximum borrow available
+      * @notice `getMaxBorrowAvailable` gets the maximum borrow value available
+      * (which is also the max value that can be withdrawn)
       * @param account the address of the account
       * @return uint256 the maximum borrow amount available
       */
     function getMaxBorrowAvailable(address account) public returns (uint256) {
-        int256 valueEquivalent = getValueEquivalent(account);
-        if(valueEquivalent <= 0) {
+
+        ValueEquivalents memory ve = getValueEquivalents(account);
+        uint256 ratioAdjustedBorrow = ve.borrowValue * borrowStorage.minimumCollateralRatio();
+
+        if(ratioAdjustedBorrow >= ve.cashValue) {
+            // failure("DEBUG::getMaxBorrowAvailable", ve.cashValue, ve.borrowValue, ratioAdjustedBorrow, borrowStorage.minimumCollateralRatio());
             return 0;
         }
-        return uint256(valueEquivalent) * borrowStorage.minimumCollateralRatio();
+
+        return (ve.cashValue - ratioAdjustedBorrow) / borrowStorage.minimumCollateralRatio();
+
+        // scenarios with 2x collateralization means ratio = 2 and produces a borrowable amount smaller than resources
+        // so we should divide by ratio, not multiply.
+        // scenario 1: cash value is 10 and borrow value is 9
+        // rab (ratioAdjustedBorrow) = 9*2 = 18
+        // cash - rab = 10 - 18 = -8, not positive so return 0.
+
+        // scenario 2: cash = 10, borrow = 5
+        // rab = 5*2 = 10
+        // cash - rab = 10 - 10 = 0, not positive so return 0
+
+        // scenario 2: cash = 10, borrow = 4
+        // rab = 4*2 = 8
+        // cash - rab = 10 - 8 = 2 positive so continue:
+        // 2/ratio = 2/2 = 1 max borrowable.
+        // if customer borrows 1, that puts them back into scenario 2 where we see no more borrowing is allowed.
+        // which is good.
     }
 
     /**
@@ -324,7 +345,6 @@ contract Borrower is Graceful, Owned, Ledger {
       * @return boolean true if the requested amount is valid and false otherwise
       */
     function validCollateralRatio(uint256 borrowAmount, address borrowAsset) internal returns (bool) {
-        // TODO valid if borrower has loans for multiple assets?
         return validCollateralRatioNotSender(msg.sender, borrowAmount, borrowAsset);
     }
 
@@ -337,15 +357,13 @@ contract Borrower is Graceful, Owned, Ledger {
       * @return boolean true if the requested amount is valid and false otherwise
       */
     function validCollateralRatioNotSender(address borrower, uint256 borrowAmount, address borrowAsset) internal returns (bool) {
-        int256 valueEquivalent = getValueEquivalent(borrower);
-        if(valueEquivalent <= 0) {
-            return false;
+        uint desiredBorrowValue = priceOracle.getAssetValue(borrowAsset, borrowAmount);
+        uint maxBorrow = getMaxBorrowAvailable(borrower);
+        if (desiredBorrowValue <= maxBorrow) {
+            return true;
         }
-        // TODO valid if borrower has loans for multiple assets?
-        uint valueTimesRatio = (uint256(valueEquivalent) * borrowStorage.minimumCollateralRatio());
-        uint assetValue = priceOracle.getAssetValue(borrowAsset, borrowAmount);
-        // failure("Debug::validCollateralRatioNotSender", uint256(valueTimesRatio), uint256(assetValue));
-        return valueTimesRatio >= assetValue;
+        failure("Borrower::InvalidCollateralRatio", uint256(borrowAsset), uint256(borrowAsset), desiredBorrowValue, maxBorrow);
+        return false;
     }
 
     /**
@@ -354,18 +372,20 @@ contract Borrower is Graceful, Owned, Ledger {
       * @return the collateral shortfall value, or 0 if borrower has enough collateral
       */
     function collateralShortfall(address borrower) public returns (uint256) {
+
+        // If getMaxBorrowAvailable were changed to return a signed value, with negative for collateral shortfall, then
+        // we could just use that instead, but signed values introduce extra difficulties, so we keep getMaxBorrowAvailable
+        // as unsigned and duplicate some of it here.
+
         ValueEquivalents memory ve = getValueEquivalents(borrower);
 
-        // Example: 1000 borrows value / 2 ratio = 500 requiredSupplyValue
-        uint256 requiredSupplyValue = ve.borrowValue / borrowStorage.minimumCollateralRatio();
         uint256 result = 0;
-
-        if(ve.supplyValue >= requiredSupplyValue) {
-            result = 0;
-        } else {
-            result = requiredSupplyValue - ve.supplyValue;
+        if(ve.borrowValue >= ve.cashValue) {
+            // Here we multiply by minimumCollateralRatio because we require over-collateralized borrows.
+            result= (ve.borrowValue - ve.cashValue) * borrowStorage.minimumCollateralRatio();
         }
-        // failure("Debug::collateralShortfall", requiredSupplyValue, ve.supplyValue, ve.borrowValue, result);
+
+        // failure("Debug::collateralShortfall", ve.borrowValue, ve.cashValue, result);
         return result;
     }
 
@@ -374,31 +394,30 @@ contract Borrower is Graceful, Owned, Ledger {
     struct ValueEquivalents {
         uint256 supplyValue;
         uint256 borrowValue;
+        uint256 cashValue;
     }
 
     function getValueEquivalents(address acct) internal returns (ValueEquivalents memory) {
         uint256 assetCount = priceOracle.getAssetsLength(); // from PriceOracle
         uint256 supplyValue = 0;
         uint256 borrowValue = 0;
+        uint256 cashValue = 0;
 
         for (uint64 i = 0; i < assetCount; i++) {
             address asset = priceOracle.assets(i);
             supplyValue += priceOracle.getAssetValue(asset, getBalance(acct, LedgerAccount.Supply, asset));
             borrowValue += priceOracle.getAssetValue(asset, getBalance(acct, LedgerAccount.Borrow, asset));
+            cashValue += priceOracle.getAssetValue(asset, getBalance(acct, LedgerAccount.Cash, asset));
         }
-        return ValueEquivalents({supplyValue: supplyValue, borrowValue: borrowValue});
+        // failure("DEBUG:getValueEquivalents: assetCount, supplyValue, cashValue, borrowValue", uint256(assetCount), supplyValue, cashValue, borrowValue);
+        return ValueEquivalents({supplyValue: supplyValue, borrowValue: borrowValue, cashValue: cashValue});
     }
 
-    /**
-     * @notice `getValueEquivalent` returns the value of the account based on
-     * PriceOracle prices of assets. Note: this includes the Eth value itself.
-     * @param acct The account to view value balance
-     * @return value The value of the acct in Eth equivalency
-     */
-    function getValueEquivalent(address acct) public returns (int256) {
+    function getValueEquivalentsNonStruct(address acct) public returns (uint256 supplyValue, uint256 borrowValue, uint256 cashValue) {
         ValueEquivalents memory ve = getValueEquivalents(acct);
-        return int256(ve.supplyValue - ve.borrowValue);
+        return (ve.supplyValue, ve.borrowValue, ve.cashValue);
     }
+
 
     /**
      * `getConvertedAssetValueWithDiscount` returns the PriceOracle's view of the current

@@ -97,14 +97,14 @@ contract Supplier is Graceful, Owned, Ledger {
             return false;
         }
 
-        // TODO: Use collateral-adjusted balance.  If a customer has borrows, we shouldn't let them
-        // withdraw below their minimum collateral value.
+        // TODO: Disallow withdrawal whose equivalent value exceeds Borrower.getMaxBorrowAvailable(msg.sender)
         uint256 balance = getBalance(msg.sender, LedgerAccount.Supply, asset);
         if (amount > balance) {
             failure("Supplier::InsufficientBalance", uint256(asset), uint256(amount), uint256(to), uint256(balance));
             return false;
         }
 
+        failure("Debug::customerWithdraw", amount);
         debit(LedgerReason.CustomerWithdrawal, LedgerAccount.Supply, msg.sender, asset, amount);
         credit(LedgerReason.CustomerWithdrawal, LedgerAccount.Cash, msg.sender, asset, amount);
 

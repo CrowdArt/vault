@@ -68,6 +68,7 @@ contract InterestRateStorage is Owned, Allowed {
       */
     function saveBlockInterest(uint8 ledgerAccount, address asset, uint64 currentInterestRate) public returns (bool) {
         if (!checkAllowed()) {
+            failure("DEBUG::saveBlockInterest checkAllowed false");
             return false;
         }
 

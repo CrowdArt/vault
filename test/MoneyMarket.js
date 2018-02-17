@@ -92,9 +92,33 @@ contract('MoneyMarket', function(accounts) {
 
   describe('#customerBorrow', () => {
     it("pays out the amount requested", async () => {
-      await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[1]);
-      await moneyMarket.customerBorrow(etherToken.address, 20, {from: web3.eth.accounts[1]});
-      await utils.assertEvents(moneyMarket, [
+
+      const system = 0;
+      const supplier = 3; //supplies WETH so it's available to be borrowed
+      const borrower = 1; //0; supplies faucet token collateral and borrows WETH
+
+      // set token value
+      await utils.setAssetValue(priceOracle, faucetToken, 10, web3);
+
+      // 100000 wei WETH to supplier so borrower can borrow it
+      await utils.supplyEth(moneyMarket, etherToken, 100000, web3.eth.accounts[supplier]);
+      // Allocate 1000 pig tokens to borrower and approve 900 tokens to be moved into compound
+      await faucetToken.allocateTo(web3.eth.accounts[borrower], 1000, {from: web3.eth.accounts[system]});
+      await faucetToken.approve(moneyMarket.address, 900, {from: web3.eth.accounts[borrower]});
+
+      // Supply the tokens which are collateral
+      moneyMarket.customerSupply(faucetToken.address, 900, {from: web3.eth.accounts[borrower]});
+      // jkl
+      // verify balance in ledger
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[supplier], etherToken.address), 100000);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[borrower], faucetToken.address), 900);
+
+      assert.equal(await utils.getAssetValue(priceOracle, faucetToken, 900), 9000);
+
+      // Finally, borrow WETH
+      await moneyMarket.customerBorrow(etherToken.address, 20, {from: web3.eth.accounts[borrower]});
+
+      const missing_events = await utils.assertEvents2(moneyMarket, [
         {
           event: "LedgerEntry",
           args: {
@@ -118,12 +142,13 @@ contract('MoneyMarket', function(accounts) {
             customer: web3.eth.accounts[1],
             asset: etherToken.address,
             amount: web3.toBigNumber('20'),
-            balance: web3.toBigNumber('120'),
+            balance: web3.toBigNumber('20'),
             interestRateBPS: web3.toBigNumber('0'),
             nextPaymentDate: web3.toBigNumber('0')
           }
         }
       ]);
+      assert.equal(0, missing_events.length, 'event(s) missing');
     });
   });
 
@@ -325,28 +350,39 @@ contract('MoneyMarket', function(accounts) {
     });
   });
 
-  describe('#getValueEquivalent', () => {
+  describe('#getValueEquivalentsNonStruct', () => {
     it('should get value of assets', async () => {
+
+      const system = 0;
+      const supplier = 3; //supplies WETH so it's available to be borrowed
+      const borrower = 1; //0; supplies faucet token collateral and borrows WETH
+
       // supply Ether tokens for acct 1
       await borrowStorage.addBorrowableAsset(faucetToken.address);
-      await faucetToken.allocateTo(web3.eth.accounts[0], 100);
+      await faucetToken.allocateTo(web3.eth.accounts[supplier], 100);
 
-      // // Approve wallet for 55 tokens
-      await faucetToken.approve(moneyMarket.address, 100, {from: web3.eth.accounts[0]});
-      await moneyMarket.customerSupply(faucetToken.address, 100, {from: web3.eth.accounts[0]});
-      await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[1]);
+      // Approve wallet for 100 tokens
+      await faucetToken.approve(moneyMarket.address, 100, {from: web3.eth.accounts[supplier]});
+      await moneyMarket.customerSupply(faucetToken.address, 100, {from: web3.eth.accounts[supplier]});
+      await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[borrower]);
       //
       // set PriceOracle value (each Eth is now worth two Eth!)
       await utils.setAssetValue(priceOracle, etherToken, 2, web3);
       await utils.setAssetValue(priceOracle, faucetToken, 2, web3);
-      await moneyMarket.customerBorrow(faucetToken.address, 1, {from: web3.eth.accounts[1]});
-      await moneyMarket.customerWithdraw(faucetToken.address, 1, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+      await moneyMarket.customerBorrow(faucetToken.address, 1, {from: web3.eth.accounts[borrower]});
+      console.log("A");
+      await moneyMarket.customerWithdraw(faucetToken.address, 1, web3.eth.accounts[borrower], {from: web3.eth.accounts[borrower]});
+      // TODO: Test is blowing up after logging A but before B.
+      console.log("B");
 
-      // get value of acct 1
-      const eqValue = moneyMarket.getValueEquivalent.call(web3.eth.accounts[1]);
-      await moneyMarket.getValueEquivalent(web3.eth.accounts[1]);
+      // get value of borrower acct
+      // const eqValue = moneyMarket.getValueEquivalent.call(web3.eth.accounts[1]);
+      // TODO: How to get multiple returns out of solidity into javascript?
+      var supplyValue, borrowValue, cashValue;
+      supplyValue, borrowValue, cashValue = await moneyMarket.getValueEquivalents(web3.eth.accounts[borrower]);
 
-      assert.equal(await utils.toNumber(eqValue), 198);
+      assert.equal(supplyValue, 198);
+      // assert.equal(await utils.toNumber(eqValue), 198);
     });
   });
 

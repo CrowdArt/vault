@@ -13,6 +13,7 @@ var Promise = require("bluebird");
 var BigNumber = require('bignumber.js');
 var one = new BigNumber(1);
 const toAssetValue = (value) => (value * 10 ** 9);
+const fromAssetValue = (value) => (value / 10 ** 9);
 const interestRateScale = 10 ** 17;
 const blocksPerYear = 2102400;
 const annualBPSToScaledPerBlockRate = (value) => Math.trunc((value * interestRateScale) / (10000 * blocksPerYear));
@@ -249,6 +250,28 @@ module.exports = {
     });
   },
 
+  // Log missing events rather than throwing. This avoids non-deterministic absence of
+  // missing logs info.
+  // Caller must assert size of returned missing elements array == 0.
+  // There's probably another wrapper we can put on this to do the assertion.
+  assertEvents2: function(contract, expectedEvents, args) {
+    return new Promise((resolve, reject) => {
+      var missing = [];
+      var event = contract.allEvents(args);
+      event.get((error, events) => {
+        _.each(expectedEvents, (expectedEvent) => {
+          if (!_.find(events, expectedEvent)) {
+            var item = "TEST FAILURE: " + expectedEvent.event + "(" + JSON.stringify(expectedEvent.args) + ") wasn't logged";
+            missing.push(item);
+            console.log(item);
+          }
+        })
+        resolve(missing);
+      });
+      event.stopWatching();
+    });
+  },
+
   assertDifference: async function(assert, difference, checkFn, execFn) {
     const start = await checkFn();
 
@@ -342,6 +365,10 @@ module.exports = {
 
   setAssetValue: async function(oracle, asset, amountInWei, web3) {
     return await oracle.setAssetValue(asset.address, toAssetValue(amountInWei), {from: web3.eth.accounts[0]});
+  },
+
+  getAssetValue: async function(oracle, asset, quantityInWei) {
+    return (await oracle.getAssetValue(asset.address, quantityInWei)).toNumber();
   },
 
   addBorrowableAsset: async function(borrower, asset, web3) {

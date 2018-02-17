@@ -280,7 +280,8 @@ contract Ledger is Graceful, Owned {
     function isCustomerAccount(LedgerAccount ledgerAccount) private pure returns (bool) {
         return (
             ledgerAccount == LedgerAccount.Supply ||
-            ledgerAccount == LedgerAccount.Borrow
+            ledgerAccount == LedgerAccount.Borrow ||
+            ledgerAccount == LedgerAccount.Cash
         );
     }
 
@@ -296,6 +297,7 @@ contract Ledger is Graceful, Owned {
         uint64 interestRate = getInterestRate(asset, ledgerAccount);
 
         if (interestRate > 0) {
+            failure("DEBUG::saveBlockInterest interestRate", uint256(interestRate));
             return interestRateStorage.saveBlockInterest(uint8(ledgerAccount), asset, interestRate);
         }
 
