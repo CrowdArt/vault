@@ -276,13 +276,15 @@ contract('MoneyMarket', function(accounts) {
       await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1500) , {from: web3.eth.accounts[system]});
 
       const result = await moneyMarket.liquidateCollateral.call(web3.eth.accounts[borrower], faucetToken.address, 50, etherToken.address, {from: web3.eth.accounts[liquidator]});
-      assert.equal(result, 76530);
+
+      // (1500 price pig * 50quantity) / ((1 price eth) * (.98 discount multiplier)) = 75,000 / 0.98 = 76,530.6122449 = 76530 wei weth
+      const expected_collateral_seized = 76530;
+      assert.equal(result, expected_collateral_seized);
       await moneyMarket.liquidateCollateral(web3.eth.accounts[borrower], faucetToken.address, 50, etherToken.address, {from: web3.eth.accounts[liquidator]});
 
       // liquidator deposited 650 pig tokens and spent 50 wei on liquidation, so should have 600.
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 600);
-      // and gained (1500 * 50) / .98 = 75,000 / 0.98 = 76,530.6122449 = 76530 wei weth
-      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], etherToken.address), 76530);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], etherToken.address), expected_collateral_seized);
     });
   });
 
@@ -385,10 +387,12 @@ contract('MoneyMarket', function(accounts) {
       it("applies discount to target asset price", async () => {
         await priceOracle.setAssetValue(tokenAddrs.BAT, toAssetValue(2) , {from: web3.eth.accounts[0]});
         await priceOracle.setAssetValue(tokenAddrs.OMG, toAssetValue(5) , {from: web3.eth.accounts[0]});
-        const balance = await moneyMarket.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 500);
+        const discount_bps = 500;
+        const balance = await moneyMarket.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, discount_bps);
         // compare to 400000000000000000 in non-discounted test in priceOracle.js of getConvertedAssetValue
         // we expect to get more of the target asset here because its price has been discounted
-        assert.equal(balance.valueOf(), 421052631578947368); // (1 * 10^18)*2/(5*.95) or 4.444....e17
+        // expected: ( quantity 1 * 10^18)*(2 price BAT)/(5 price OMG *.95 discount multiplier) = 4.21052631578947368... × 10^17
+        assert.equal(balance.valueOf(), 421052631578947368);
       });
     });
 
@@ -397,10 +401,12 @@ contract('MoneyMarket', function(accounts) {
         // Asset1 = 5 * 10E18 (aka 5 Eth)// Asset2 = 2 * 10E18 (aka 2 Eth)
         await priceOracle.setAssetValue(tokenAddrs.BAT, toAssetValue(5), {from: web3.eth.accounts[0]});
         await priceOracle.setAssetValue(tokenAddrs.OMG, toAssetValue(2), {from: web3.eth.accounts[0]});
-        const balance = await moneyMarket.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, 500);
+        const discount_bps = 500;
+        const balance = await moneyMarket.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.OMG, discount_bps);
         // compare to 2500000000000000000 in non-discounted test in priceOracle.js getConvertedAssetValue
         // we expect to get more of the target asset here because its price has been discounted
-        assert.equal(balance.valueOf(), 2631578947368421052); // (1 * 10^18)*5/(2*.95) or 2.63157894736842E18
+        // expected: ( quantity 1 * 10^18)*(5 price BAT)/(2 price OMG *.95 discount multiplier) = 2.631578947368421052... × 10^18
+        assert.equal(balance.valueOf(), 2631578947368421052);
       });
     });
   });
