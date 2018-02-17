@@ -275,6 +275,8 @@ contract('MoneyMarket', function(accounts) {
       // Now make pig token 1500x more expensive, so borrow falls under the collateral requirement
       await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1500) , {from: web3.eth.accounts[system]});
 
+      const result = await moneyMarket.liquidateCollateral.call(web3.eth.accounts[borrower], faucetToken.address, 50, etherToken.address, {from: web3.eth.accounts[liquidator]});
+      assert.equal(result, 76530);
       await moneyMarket.liquidateCollateral(web3.eth.accounts[borrower], faucetToken.address, 50, etherToken.address, {from: web3.eth.accounts[liquidator]});
 
       // liquidator deposited 650 pig tokens and spent 50 wei on liquidation, so should have 600.
