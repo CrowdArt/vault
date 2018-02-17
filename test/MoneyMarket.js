@@ -229,6 +229,51 @@ contract('MoneyMarket', function(accounts) {
     });
   });
 
+  describe('#liquidate', () => {
+    it.skip('gives collateral to liquidator', async () => {
+
+      const system = 0;
+      const pigSupplier = 3; //supplies PIG so it's available to be borrowed
+      const borower = 1; //0; supplies eth for collateral and gets PIG
+      const liquidator = 2; // supplies PIG for loan and gets ETH
+
+      // Supply PIG so it can be borrowed.
+      console.log("A");
+      await faucetToken.approve(moneyMarket.address, 100, {from: web3.eth.accounts[pigSupplier]});
+      console.log("B");
+      await moneyMarket.customerSupply(faucetToken.address, 100, {from: web3.eth.accounts[pigSupplier]});
+
+      console.log("C");
+      // Give PIG to liquidator so they can replenish the loan
+      await faucetToken.allocateTo(web3.eth.accounts[liquidator], 200, {from: web3.eth.accounts[system]});
+      await faucetToken.approve(moneyMarket.address, 200, {from: web3.eth.accounts[liquidator]});
+      await moneyMarket.customerSupply(faucetToken.address, 200, {from: web3.eth.accounts[liquidator]});
+      await borrowStorage.addBorrowableAsset(faucetToken.address, {from: web3.eth.accounts[system]});
+
+      console.log("D");
+      // WETH to accounts[0] that they supply as collateral
+      await utils.supplyEth(moneyMarket, etherToken, 30, web3.eth.accounts[borower]);
+      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1) , {from: web3.eth.accounts[system]});
+      await moneyMarket.customerBorrow(faucetToken.address, 30, {from: web3.eth.accounts[borower]});
+
+      // Make sure liquidator has balance of token
+      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 200);
+
+      console.log("E");
+      await utils.mineBlocks(web3, 1);
+      console.log("F");
+      await priceOracle.setAssetValue(faucetToken.address, toAssetValue(5) , {from: web3.eth.accounts[system]});
+      console.log("G");
+
+      // GracefulFailure(errorMessage: Borrower::ValidCollateralRatio, values: 2.98465397009183236821697531246492154186639677371e+47)
+      await moneyMarket.liquidateCollateral(web3.eth.accounts[borower], faucetToken.address, 1, etherToken.address, {from: web3.eth.accounts[liquidator]});
+
+      // verify balances in W-Eth
+      // assert.equal(await utils.tokenBalance(etherToken, tokenStore.address), 80);
+      assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 180); // started with 200 but gave 20 toward loan
+    });
+  });
+
   describe("when the user tries to take a borrow out of an unsupported asset", () => {
     it("fails when insufficient cash", async () => {
       await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[0]);

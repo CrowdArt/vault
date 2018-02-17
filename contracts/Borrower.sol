@@ -186,8 +186,8 @@ contract Borrower is Graceful, Owned, Ledger {
         // Only check shortfall after truing up borrow balance.
         int256 shortfall = collateralShortfall(borrower);
         // Only allow conversion if there is a non-zero shortfall
-        if (shortfall == 0) {
-            failure("Borrower::ValidCollateralRatio", uint256(borrower));
+        if (shortfall <= 0) {
+            failure("Borrower::ValidCollateralRatio", uint256(borrower), uint256(shortfall * -1));
             return 0;
         }
 
@@ -210,7 +210,7 @@ contract Borrower is Graceful, Owned, Ledger {
         // Make sure borrower has enough of the requested collateral
         uint256 collateralBalance = getBalance(borrower, LedgerAccount.Supply, assetToLiquidate);
         if(collateralBalance < seizeCollateralAmount) {
-            failure("Borrower::InsufficientCollateral", collateralBalance, seizeCollateralAmount);
+            failure("Borrower::InsufficientLiquidationCollateral", collateralBalance, seizeCollateralAmount);
             return 0;
         }
 
@@ -346,18 +346,14 @@ contract Borrower is Graceful, Owned, Ledger {
 
     /**
       * @notice `collateralShortfall` returns eth equivalent value of collateral needed to bring borrower to a valid collateral ratio,
-      * or 0 if the borrower is already at or above valid collateral ratio
       * @param borrower account to check
-      * @return the collateral shortfall value, or 0 if borrower has enough collateral
+      * @return the collateral shortfall value, 0 or negative means borrower has enough collateral
       */
     function collateralShortfall(address borrower) public returns (int256) {
         ValueEquivalents memory ve = getValueEquivalents(borrower);
         int256 netValueEquivalent = int256(ve.supplyValue - ve.borrowValue);
 
         int256 requiredValue = int256(ve.borrowValue / borrowStorage.minimumCollateralRatio());
-        if(netValueEquivalent >= requiredValue) {
-            return 0;
-        }
         return requiredValue - netValueEquivalent;
     }
 
