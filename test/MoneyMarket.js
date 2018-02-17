@@ -13,6 +13,7 @@ const TokenStore = artifacts.require("./storage/TokenStore.sol");
 const PriceOracle = artifacts.require("./storage/PriceOracle.sol");
 const FaucetToken = artifacts.require("./token/FaucetToken.sol");
 const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const Wallet = artifacts.require("./Wallet.sol");
 const utils = require('./utils');
 const tokenAddrs = utils.tokenAddrs;
 
@@ -230,7 +231,7 @@ contract('MoneyMarket', function(accounts) {
   });
 
   describe('#liquidate', () => {
-    it.skip('gives collateral to liquidator', async () => {
+    it('gives collateral to liquidator', async () => {
 
       const system = 0;
       const pigSupplier = 3; //supplies PIG so it's available to be borrowed
@@ -250,11 +251,8 @@ contract('MoneyMarket', function(accounts) {
       assert.equal(await utils.tokenBalance(faucetToken, web3.eth.accounts[liquidator]), 75);
 
       // Supply those tokens
-      // TODO Use Supplier instead.
       moneyMarket.customerSupply(faucetToken.address, 90, {from: web3.eth.accounts[pigSupplier]});
       moneyMarket.customerSupply(faucetToken.address, 65, {from: web3.eth.accounts[liquidator]});
-      // await supplierWallet.supplyAsset(faucetToken.address, 90, {from: web3.eth.accounts[pigSupplier]});
-      // await liquidatorWallet.supplyAsset(faucetToken.address, 65, {from: web3.eth.accounts[liquidator]});
 
       // WETH to borrower that they supply as collateral
       await utils.supplyEth(moneyMarket, etherToken, 5, web3.eth.accounts[borrower]);
@@ -267,27 +265,21 @@ contract('MoneyMarket', function(accounts) {
       // Make pig token borrowable
       await borrowStorage.addBorrowableAsset(faucetToken.address, {from: web3.eth.accounts[system]});
 
-      console.log("D");
-
-      // Make pig token cheap
+      // Make pig token cheap so loan is easy to get
       await priceOracle.setAssetValue(faucetToken.address, toAssetValue(1) , {from: web3.eth.accounts[system]});
       await moneyMarket.customerBorrow(faucetToken.address, 2, {from: web3.eth.accounts[borrower]});
+      // Withdraw borrowed asset
+      await moneyMarket.customerWithdraw(faucetToken.address, 2, web3.eth.accounts[borrower], {from: web3.eth.accounts[borrower]});
 
-      console.log("E");
       await utils.mineBlocks(web3, 1);
-      console.log("F");
+      // Now make pig token more expensive, so borrow falls under the collateral requirement
       await priceOracle.setAssetValue(faucetToken.address, toAssetValue(3) , {from: web3.eth.accounts[system]});
-      console.log("G");
 
-      await moneyMarket.liquidateCollateral(web3.eth.accounts[borrower], faucetToken.address, 1, etherToken.address, {from: web3.eth.accounts[borrower]});
-      console.log("H");
-      /*
-      1) Contract: MoneyMarket #liquidate gives collateral to liquidator:
-     AssertionError: expected 10 to equal 89
-       */
+      await moneyMarket.liquidateCollateral(web3.eth.accounts[borrower], faucetToken.address, 1, etherToken.address, {from: web3.eth.accounts[liquidator]});
+
       // liquidator deposited 65 pig tokens and spent 1 on liquidation, so should have 64.
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], faucetToken.address), 64);
-      // and gained 3 eth: 0+3 (this is wrong because of discount factor)
+      // and gained 3 eth: 0+3 (actually, this is wrong because of discount factor- should get more than 3, but I'm using micro amounts)
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[liquidator], etherToken.address), 3);
     });
   });
