@@ -1,5 +1,11 @@
 "use strict";
 
+// mnemonics for array indices for web3.eth.accounts used in tests
+const system = 0;
+const supplier = 3;
+const borrower = 1;
+const liquidator = 2;
+
 const BigNumber = require('bignumber.js');
 const MoneyMarket = artifacts.require("./MoneyMarket.sol");
 const LedgerStorage = artifacts.require("./storage/LedgerStorage.sol");
@@ -93,9 +99,6 @@ contract('MoneyMarket', function(accounts) {
   describe('#customerBorrow', () => {
     it("pays out the amount requested", async () => {
 
-      const system = 0;
-      const supplier = 3; //supplies WETH so it's available to be borrowed
-      const borrower = 1; //0; supplies faucet token collateral and borrows WETH
 
       // set token value
       await utils.setAssetValue(priceOracle, faucetToken, 10, web3);
@@ -245,10 +248,10 @@ contract('MoneyMarket', function(accounts) {
     });
 
     describe("when the user doesn't have enough collateral supplied", () => {
-      it("fails", async () => {
+      it("should fail with a GracefulFailure event", async () => {
         await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[0]);
 
-        await utils.assertGracefulFailure(moneyMarket, "Borrower::InvalidCollateralRatio", [null, 201, 201, 100], async () => {
+        await utils.awaitGracefulFailure2(assert, moneyMarket, "Borrower::InvalidCollateralRatio", [null, 201, 201, 100], async () => {
           await moneyMarket.customerBorrow(etherToken.address, 201, {from: web3.eth.accounts[0]});
         });
       });
@@ -258,10 +261,9 @@ contract('MoneyMarket', function(accounts) {
   describe('#liquidate', () => {
     it('gives collateral to liquidator in exchange for loan asset', async () => {
 
-      const system = 0;
-      const pigSupplier = 3; //supplies PIG so it's available to be borrowed
-      const borrower = 1; //0; supplies eth for collateral and gets PIG
-      const liquidator = 2; // supplies PIG for loan and gets ETH
+      // supplier supplies PIG so it's available to be borrowed
+      // borrower supplies eth for collateral and gets PIG
+      // liquidator supplies PIG for loan and gets ETH
 
       // Allocate 1000 pig tokens to pigSupplier and 750 to liquidator
       await faucetToken.allocateTo(web3.eth.accounts[pigSupplier], 1000, {from: web3.eth.accounts[system]});
@@ -322,7 +324,7 @@ contract('MoneyMarket', function(accounts) {
       await moneyMarket.setBalanceSheet(testBalanceSheet.address);
       await borrowStorage.addBorrowableAsset(utils.tokenAddrs.OMG);
 
-      await utils.assertGracefulFailure(moneyMarket, "Borrower::InsufficientAssetCash", [], async () => {
+      await utils.awaitGracefulFailure2(assert, moneyMarket, "Borrower::InsufficientAssetCash", [], async () => {
         await moneyMarket.customerBorrow(utils.tokenAddrs.OMG, 50, {from: web3.eth.accounts[0]});
       });
     });
@@ -342,20 +344,26 @@ contract('MoneyMarket', function(accounts) {
 
   describe('#getMaxBorrowAvailable', () => {
     it('gets the maximum borrow available', async () => {
-      await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[1]);
-      await moneyMarket.customerBorrow(etherToken.address, 20, {from: web3.eth.accounts[1]});
-      await moneyMarket.customerWithdraw(etherToken.address, 20, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+      await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[borrower]);
+      await moneyMarket.customerBorrow(etherToken.address, 20, {from: web3.eth.accounts[borrower]});
+      await moneyMarket.customerWithdraw(etherToken.address, 20, web3.eth.accounts[borrower], {from: web3.eth.accounts[borrower]});
+      /*
+       at this point cash balance is 80 and borrow balance is 20.
+       max borrow available = (80 - (20*collateral_ratio))/collateral_ratio
+                            = (80 - (20*2))/2 = 20
+       */
 
-      assert.equal(await utils.toNumber(moneyMarket.getMaxBorrowAvailable.call(web3.eth.accounts[1])), 160);
+      assert.equal(await utils.toNumber(moneyMarket.getMaxBorrowAvailable.call(web3.eth.accounts[1])), 20);
     });
   });
 
   describe('#getValueEquivalentsNonStruct', () => {
     it('should get value of assets', async () => {
 
-      const system = 0;
-      const supplier = 3; //supplies WETH so it's available to be borrowed
-      const borrower = 1; //0; supplies faucet token collateral and borrows WETH
+      /*
+        supplier supplies WETH so it's available to be borrowed
+        borrower supplies faucet token collateral and borrows WETH
+       */
 
       // supply Ether tokens for acct 1
       await borrowStorage.addBorrowableAsset(faucetToken.address);

@@ -121,6 +121,79 @@ async function assertGracefulFailure(contract, failure, failureParamsOrExecFn, m
   });
 }
 
+// Skips unexpected events. Only reports problems if expected event not seen or expected event has
+// unexpected parameters.
+async function assertGracefulFailure2(contract, failure, failureParamsOrExecFn, maybeExecFn) {
+  var failureParams;
+  var execFn;
+
+  // Allow failureParams to be optional.
+  if (maybeExecFn) {
+    execFn = maybeExecFn;
+    failureParams = failureParamsOrExecFn;
+  } else {
+    failureParams = null;
+    execFn = failureParamsOrExecFn;
+  }
+
+  await execFn();
+
+  return new Promise((resolve, reject) => {
+
+    var problems = [];
+    var numSkipped = 0;
+    var event = contract.allEvents();
+    event.get((error, events) => {
+      var found = false;
+
+      for (event of events) {
+        if (event.event === 'GracefulFailure') {
+          if (event.args.errorMessage === failure) {
+            if (failureParams) {
+              for (var i = 0; i < failureParams.length; i++) {
+                var expected = failureParams[i];
+                var actual = event.args.values[i];
+
+                if (failureParams[i] && expected != actual) {
+                  var msg = `TEST ERROR: GracefulFailure parameter mismatch #${i+1}, "${expected}" expected, got "${actual}"`;
+                  problems.push(msg);
+                }
+              }
+            }
+
+            found = true;
+            resolve(problems);
+          } else {
+            //if (!event.args.errorMessage.match(/^DEBUG.*/)) {
+              var msg = `TEST WARNING: GracefulFailure unexpected event "${event.args.errorMessage}"`;
+              console.log(msg);
+              // Let's not add it to problems.
+            //}
+            numSkipped += 1;
+
+          }
+        }
+      }
+
+      if (!found) {
+        var msg = `TEST ERROR: GracefulFailure "${failure}" not detected. numSkipped="${numSkipped}`;
+        problems.push(msg);
+        console.log(msg);
+        resolve(problems);
+      }
+    });
+
+    event.stopWatching();
+  });
+}
+
+async function awaitGracefulFailure2(assert, contract, failure, failureParamsOrExecFn, maybeExecFn) {
+
+  const problems = await assertGracefulFailure2(contract,failure, failureParamsOrExecFn, maybeExecFn);
+  assert.equal(0, problems.length, problems.join("\n\t\t"));
+
+}
+
 async function increaseTime(web3, seconds) {
   return new Promise((resolve, reject) => {
     web3.currentProvider.sendAsync({
@@ -411,5 +484,7 @@ module.exports = {
   },
   assertFailure,
   assertGracefulFailure,
+  assertGracefulFailure2,
+  awaitGracefulFailure2,
   createAndApproveWeth,
 }
