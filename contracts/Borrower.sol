@@ -305,16 +305,21 @@ contract Borrower is Graceful, Owned, Ledger {
     }
 
     /**
-      * @notice `getMaxBorrowAvailable` gets the maximum borrow available
+      * @notice `getMaxBorrowAvailable` gets the maximum borrow available given supply and any outstanding borrows
       * @param account the address of the account
       * @return uint256 the maximum borrow amount available
       */
     function getMaxBorrowAvailable(address account) public returns (uint256) {
-        int256 valueEquivalent = getValueEquivalent(account);
-        if(valueEquivalent <= 0) {
+
+
+        // borrowStorage.minimumCollateralRatio() is collateral to borrows ratio
+        // therefore the total max we can borrow with a given supply value is supply/ratio.
+        // The incremental amount we can borrow right now is that total max minus what we've already borrowed
+        uint256 ratioAdjustedSupply = ve.supplyValue / uint256(borrowStorage.minimumCollateralRatio());
+        if(ratioAdjustedSupply <= ve.borrowValue) {
             return 0;
         }
-        return uint256(valueEquivalent) * borrowStorage.minimumCollateralRatio();
+        return ratioAdjustedSupply - ve.borrowValue;
     }
 
     /**
