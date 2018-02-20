@@ -311,7 +311,8 @@ contract Borrower is Graceful, Owned, Ledger {
       */
     function getMaxBorrowAvailable(address account) public returns (uint256) {
 
-
+        ValueEquivalents memory ve = getValueEquivalents(account);
+        
         // borrowStorage.minimumCollateralRatio() is collateral to borrows ratio
         // therefore the total max we can borrow with a given supply value is supply/ratio.
         // The incremental amount we can borrow right now is that total max minus what we've already borrowed
