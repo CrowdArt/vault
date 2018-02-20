@@ -88,8 +88,7 @@ contract Borrower is Graceful, Owned, Ledger {
         }
 
         if (!validCollateralRatio(amount, asset)) {
-            failure("Borrower::InvalidCollateralRatio", uint256(asset), uint256(amount),
-                uint256(priceOracle.getAssetValue(asset, amount)), uint256(getValueEquivalent(msg.sender)));
+            // validCollateralRatio generates a graceful failure message on failure
             return false;
         }
 
@@ -306,21 +305,32 @@ contract Borrower is Graceful, Owned, Ledger {
 
     /**
       * @notice `getMaxBorrowAvailable` gets the maximum borrow available given supply and any outstanding borrows
+      * It is maxWithdrawAvailable / minimumCollateralRatio
       * @param account the address of the account
-      * @return uint256 the maximum borrow amount available
+      * @return uint256 the maximum additional eth equivalent borrow value that can be added to account
       */
     function getMaxBorrowAvailable(address account) public returns (uint256) {
 
+        return getMaxWithdrawAvailable(account) / uint256(borrowStorage.minimumCollateralRatio());
+    }
+
+    /**
+      * TODO: This should be available in Supplier.sol to gate withdrawals
+      * @notice `getMaxWithdrawAvailable` gets the maximum withdrawal value available given supply and any outstanding borrows
+      * It is supply - (borrows * minimumCollateralRatio)
+      * @param account the address of the account
+      * @return uint256 the maximum eth-equivalent value that can be withdrawn
+      */
+    function getMaxWithdrawAvailable(address account) public returns (uint256) {
+
         ValueEquivalents memory ve = getValueEquivalents(account);
-        
-        // borrowStorage.minimumCollateralRatio() is collateral to borrows ratio
-        // therefore the total max we can borrow with a given supply value is supply/ratio.
-        // The incremental amount we can borrow right now is that total max minus what we've already borrowed
-        uint256 ratioAdjustedSupply = ve.supplyValue / uint256(borrowStorage.minimumCollateralRatio());
-        if(ratioAdjustedSupply <= ve.borrowValue) {
+
+        uint256 ratioAdjustedBorrow = ve.borrowValue * uint256(borrowStorage.minimumCollateralRatio());
+        //failure("DEBUG::getMaxWithdrawAvailable: ratioAdjustedBorrow, ve.supplyValue", ratioAdjustedBorrow, ve.supplyValue);
+        if(ratioAdjustedBorrow >= ve.supplyValue) {
             return 0;
         }
-        return ratioAdjustedSupply - ve.borrowValue;
+        return ve.supplyValue - ratioAdjustedBorrow;
     }
 
     /**
@@ -330,28 +340,28 @@ contract Borrower is Graceful, Owned, Ledger {
       * @return boolean true if the requested amount is valid and false otherwise
       */
     function validCollateralRatio(uint256 borrowAmount, address borrowAsset) internal returns (bool) {
-        // TODO valid if borrower has loans for multiple assets?
-        return validCollateralRatioNotSender(msg.sender, borrowAmount, borrowAsset);
+        return validCollateralRatioBorrower(msg.sender, borrowAmount, borrowAsset);
     }
 
     /**
       *
-      * @notice `validCollateralRatioNotSender` determines if a the requested amount is valid for the specified borrower based on the minimum collateral ratio
+      * @notice `validCollateralRatioBorrower` determines if the requested borrow amount is valid for the specified borrower
+      * based on the minimum collateral ratio
       * @param borrower the borrower whose collateral should be examined
       * @param borrowAmount the requested (or current) borrow amount
       * @param borrowAsset denomination of borrow
       * @return boolean true if the requested amount is valid and false otherwise
       */
-    function validCollateralRatioNotSender(address borrower, uint256 borrowAmount, address borrowAsset) internal returns (bool) {
-        int256 valueEquivalent = getValueEquivalent(borrower);
-        if(valueEquivalent <= 0) {
-            return false;
+    function validCollateralRatioBorrower(address borrower, uint256 borrowAmount, address borrowAsset) internal returns (bool) {
+
+        uint256 borrowValue = priceOracle.getAssetValue(borrowAsset, borrowAmount);
+        uint256 maxBorrowAvailable = getMaxBorrowAvailable(borrower);
+
+        bool result = maxBorrowAvailable >= borrowValue;
+        if(!result) {
+            failure("Borrower::InvalidCollateralRatio", uint256(borrowAsset), borrowAmount, borrowValue, maxBorrowAvailable);
         }
-        // TODO valid if borrower has loans for multiple assets?
-        uint valueTimesRatio = (uint256(valueEquivalent) * borrowStorage.minimumCollateralRatio());
-        uint assetValue = priceOracle.getAssetValue(borrowAsset, borrowAmount);
-        // failure("Debug::validCollateralRatioNotSender", uint256(valueTimesRatio), uint256(assetValue));
-        return valueTimesRatio >= assetValue;
+        return result;
     }
 
     /**
@@ -360,18 +370,16 @@ contract Borrower is Graceful, Owned, Ledger {
       * @return the collateral shortfall value, or 0 if borrower has enough collateral
       */
     function collateralShortfall(address borrower) public returns (uint256) {
+
         ValueEquivalents memory ve = getValueEquivalents(borrower);
 
-        // Example: 1000 borrows value / 2 ratio = 500 requiredSupplyValue
-        uint256 requiredSupplyValue = ve.borrowValue / borrowStorage.minimumCollateralRatio();
-        uint256 result = 0;
+        uint256 ratioAdjustedBorrow = ve.borrowValue * uint256(borrowStorage.minimumCollateralRatio());
 
-        if(ve.supplyValue >= requiredSupplyValue) {
-            result = 0;
-        } else {
-            result = requiredSupplyValue - ve.supplyValue;
+        uint256 result = 0;
+        if(ratioAdjustedBorrow > ve.supplyValue) {
+            result = ratioAdjustedBorrow - ve.supplyValue;
         }
-        // failure("Debug::collateralShortfall", requiredSupplyValue, ve.supplyValue, ve.borrowValue, result);
+        //failure("DEBUG::collateralShortfall: ratioAdjustedBorrow, ve.supplyValue, result", ratioAdjustedBorrow, ve.supplyValue, result);
         return result;
     }
 
@@ -395,16 +403,6 @@ contract Borrower is Graceful, Owned, Ledger {
         return ValueEquivalents({supplyValue: supplyValue, borrowValue: borrowValue});
     }
 
-    /**
-     * @notice `getValueEquivalent` returns the value of the account based on
-     * PriceOracle prices of assets. Note: this includes the Eth value itself.
-     * @param acct The account to view value balance
-     * @return value The value of the acct in Eth equivalency
-     */
-    function getValueEquivalent(address acct) public returns (int256) {
-        ValueEquivalents memory ve = getValueEquivalents(acct);
-        return int256(ve.supplyValue - ve.borrowValue);
-    }
 
     /**
      * `getConvertedAssetValueWithDiscount` returns the PriceOracle's view of the current

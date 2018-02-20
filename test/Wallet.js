@@ -227,8 +227,6 @@ contract('Wallet', function(accounts) {
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, wallet.address, etherToken.address), 55000);
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, wallet.address, faucetToken.address), 55000);
 
-      assert.equal(await utils.toNumber(moneyMarket.getValueEquivalent.call(wallet.address)), web3.toWei(110, "kwei"));
-
       await wallet.borrowAsset(faucetToken.address, web3.toWei(22, "kwei"), web3.eth.accounts[2], {from: web3.eth.accounts[1]});
 
       await utils.mineBlocks(web3, 20);
@@ -262,8 +260,7 @@ contract('Wallet', function(accounts) {
       // verify balance in ledger
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, wallet.address, etherToken.address), 55000);
 
-      // TODO: This should fail at 27.5, not 110. Check we're calculating ratios correctly.
-      await utils.assertGracefulFailure(moneyMarket, "Borrower::InvalidCollateralRatio", [null, web3.toWei(111, "kwei"), web3.toWei(222, "kwei"), web3.toWei(55, "kwei")], async () => {
+      await utils.awaitGracefulFailureCollectMissing(assert, moneyMarket, "Borrower::InvalidCollateralRatio", [null, web3.toWei(111, "kwei"), web3.toWei(222, "kwei"), web3.toWei(27.5, "kwei")], async () => {
         await wallet.borrowAsset(faucetToken.address, web3.toWei(111, "kwei"), web3.eth.accounts[2], {from: web3.eth.accounts[1]});
       });
 
