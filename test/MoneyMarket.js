@@ -345,12 +345,24 @@ contract('MoneyMarket', function(accounts) {
   });
 
   describe('#getMaxBorrowAvailable', () => {
-    it('gets the maximum borrow available', async () => {
+    it('gets the maximum borrow available with a 2:1 (unscaled) ratio', async () => {
       await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[1]);
       await moneyMarket.customerBorrow(etherToken.address, 20, {from: web3.eth.accounts[1]});
       await moneyMarket.customerWithdraw(etherToken.address, 20, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
 
+      // (100 - (20*2))/2 = 30
       assert.equal(await utils.toNumber(moneyMarket.getMaxBorrowAvailable.call(web3.eth.accounts[1])), 30);
+    });
+
+    it('gets the maximum borrow available with a 3:2 (unscaled) ratio', async () => {
+      const accepted = await moneyMarket.setScaledMinimumCollateralRatio(1.5 * 10000);
+      assert(accepted, "collateral ratio setup failed");
+      await utils.supplyEth(moneyMarket, etherToken, 100, web3.eth.accounts[1]);
+      await moneyMarket.customerBorrow(etherToken.address, 20, {from: web3.eth.accounts[1]});
+      await moneyMarket.customerWithdraw(etherToken.address, 20, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+
+      // (100 - (20*1.5))/1.5 = 46.6...
+      assert.equal(await utils.toNumber(moneyMarket.getMaxBorrowAvailable.call(web3.eth.accounts[1])), 46);
     });
   });
 

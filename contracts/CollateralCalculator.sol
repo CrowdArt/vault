@@ -55,7 +55,6 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
     }
 
     /**
-      * TODO: This should be available in Supplier.sol to gate withdrawals
       * @notice `getMaxWithdrawAvailable` gets the maximum withdrawal value available given supply and any outstanding borrows
       * It is supply - (borrows * minimumCollateralRatio)
       * @param account the address of the account
@@ -74,6 +73,18 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
     }
 
     /**
+      * @notice `getMaxBorrowAvailable` gets the maximum borrow available given supply and any outstanding borrows
+      * It is maxWithdrawAvailable / minimumCollateralRatio
+      * @param account the address of the account
+      * @return uint256 the maximum additional eth equivalent borrow value that can be added to account
+      */
+    function getMaxBorrowAvailable(address account) public returns (uint256) {
+
+        return (getMaxWithdrawAvailable(account) * collateralRatioScale) / scaledMinCollateralToBorrowRatio;
+    }
+
+
+    /**
       * @notice `canWithdrawCollateral` returns true if the eth-equivalent value of asset <= `getMaxWithdrawAvailable`
       * @param account account that wants to withdraw
       * @param asset proposed for withdrawal
@@ -90,16 +101,6 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
         return result;
     }
 
-    /**
-      * @notice `getMaxBorrowAvailable` gets the maximum borrow available given supply and any outstanding borrows
-      * It is maxWithdrawAvailable / minimumCollateralRatio
-      * @param account the address of the account
-      * @return uint256 the maximum additional eth equivalent borrow value that can be added to account
-      */
-    function getMaxBorrowAvailable(address account) public returns (uint256) {
-
-        return (getMaxWithdrawAvailable(account) * collateralRatioScale) / scaledMinCollateralToBorrowRatio;
-    }
 
     /**
       *
