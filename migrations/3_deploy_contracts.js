@@ -11,7 +11,7 @@ const LedgerStorage = artifacts.require("LedgerStorage.sol");
 const PriceOracle = artifacts.require("PriceOracle.sol");
 const TokenStore = artifacts.require("TokenStore.sol");
 
-const MINIMUM_COLLATERAL_RATIO = 2;
+const MINIMUM_COLLATERAL_RATIO = 2 * 10000;
 
 async function deployAll(deployer, network) {
   // First, deploy MoneyMarket, EtherToken and InterstModel
@@ -39,7 +39,7 @@ async function deployAll(deployer, network) {
   // Note: if this is after the initial deploy, we should use `allow.js` for
   //       allowences instead of setting them here.
   await Promise.all([
-    borrowStorage.setMinimumCollateralRatio(MINIMUM_COLLATERAL_RATIO),
+    moneyMarket.setScaledMinimumCollateralRatio(MINIMUM_COLLATERAL_RATIO),
 
     moneyMarket.setInterestModel(interestModel.address),
 

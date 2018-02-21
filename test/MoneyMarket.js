@@ -92,7 +92,7 @@ contract('MoneyMarket', function(accounts) {
     moneyMarket.setBalanceSheet(balanceSheet.address);
 
     await utils.setAssetValue(priceOracle, etherToken, 1, web3);
-    await borrowStorage.setMinimumCollateralRatio(2);
+    await moneyMarket.setScaledMinimumCollateralRatio(20000);
     await borrowStorage.addBorrowableAsset(etherToken.address);
   });
 
@@ -216,12 +216,6 @@ contract('MoneyMarket', function(accounts) {
           }
         }
       ]);
-    });
-  });
-
-  describe('#setMinimumCollateralRatio', () => {
-    it('only can be called by the contract owner', async () => {
-      await utils.assertOnlyOwner(borrowStorage, borrowStorage.setMinimumCollateralRatio.bind(null, 1), web3);
     });
   });
 

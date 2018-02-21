@@ -10,11 +10,11 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
     PriceOracle public priceOracle;
 
     // Minimum collateral to borrow ratio. Must be >= 1 when divided by collateralRatioScale.
-    uint256 public minimumCollateralRatio = 2 * collateralRatioScale;
+    uint256 public scaledMinCollateralToBorrowRatio = 2 * collateralRatioScale;
 
-    uint256 public constant collateralRatioScale = 1; // TODO: Raise to 10000 after refactor.
+    uint256 public constant collateralRatioScale = 10000; // TODO: Raise to 10000 after refactor.
 
-    event MinimumCollateralRatioChange(uint256 newMinimumCollateralRatio);
+    event MinimumCollateralRatioChange(uint256 newScaledMinimumCollateralRatio);
 
     /**
       * @notice `setPriceOracle` sets the priceOracle storage location for this contract
@@ -33,19 +33,23 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
     }
 
     /**
-      * @notice `setMinimumCollateralRatio` sets the minimum collateral ratio
-      * @param minimumCollateralRatio_ the minimum collateral ratio to be set
-      * @dev used like this to gate borrow creation: borrower_account_value * minimumCollateralRatio >= borrow_amount
+      * @notice `setScaledMinimumCollateralRatio` sets the minimum collateral ratio
+      * @param scaledRatio the minimum collateral-to-borrow ratio to be set. It must be >= 1 when divided by collateralRatioScale
       * @return success or failure
       */
-    function setMinimumCollateralRatio(uint256 minimumCollateralRatio_) public returns (bool) {
+    function setScaledMinimumCollateralRatio(uint256 scaledRatio) public returns (bool) {
         if (!checkOwner()) {
             return false;
         }
 
-        minimumCollateralRatio = minimumCollateralRatio_;
+        // enforce non-zero input and de-scaled value >= 1
+        if(scaledRatio == 0 || scaledRatio/collateralRatioScale == 0) {
+            return failure("Collateral::InvalidScaledRatio", scaledRatio);
+        }
 
-        MinimumCollateralRatioChange(minimumCollateralRatio_);
+        scaledMinCollateralToBorrowRatio = scaledRatio;
+
+        MinimumCollateralRatioChange(scaledMinCollateralToBorrowRatio);
 
         return true;
     }
@@ -61,7 +65,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
 
         ValueEquivalents memory ve = getValueEquivalents(account);
 
-        uint256 ratioAdjustedBorrow = (ve.borrowValue * minimumCollateralRatio)/ collateralRatioScale;
+        uint256 ratioAdjustedBorrow = (ve.borrowValue * scaledMinCollateralToBorrowRatio)/ collateralRatioScale;
         //failure("DEBUG::getMaxWithdrawAvailable: ratioAdjustedBorrow, ve.supplyValue", ratioAdjustedBorrow, ve.supplyValue);
         if(ratioAdjustedBorrow >= ve.supplyValue) {
             return 0;
@@ -94,7 +98,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
       */
     function getMaxBorrowAvailable(address account) public returns (uint256) {
 
-        return (getMaxWithdrawAvailable(account) * collateralRatioScale) / minimumCollateralRatio;
+        return (getMaxWithdrawAvailable(account) * collateralRatioScale) / scaledMinCollateralToBorrowRatio;
     }
 
     /**
@@ -127,7 +131,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
 
         ValueEquivalents memory ve = getValueEquivalents(borrower);
 
-        uint256 ratioAdjustedBorrow = (ve.borrowValue * minimumCollateralRatio) / collateralRatioScale;
+        uint256 ratioAdjustedBorrow = (ve.borrowValue * scaledMinCollateralToBorrowRatio) / collateralRatioScale;
 
         uint256 result = 0;
         if(ratioAdjustedBorrow > ve.supplyValue) {
