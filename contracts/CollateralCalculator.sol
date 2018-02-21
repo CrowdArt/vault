@@ -12,7 +12,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
     // Minimum collateral to borrow ratio. Must be >= 1 when divided by collateralRatioScale.
     uint256 public scaledMinCollateralToBorrowRatio = 2 * collateralRatioScale;
 
-    uint256 public constant collateralRatioScale = 10000; // TODO: Raise to 10000 after refactor.
+    uint256 public constant collateralRatioScale = 10000;
 
     event MinimumCollateralRatioChange(uint256 newScaledMinimumCollateralRatio);
 
@@ -104,14 +104,14 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
 
     /**
       *
-      * @notice `validCollateralRatioBorrower` determines if the requested borrow amount is valid for the specified borrower
-      * based on the minimum collateral ratio
+      * @notice `canBorrowAssetAmount` determines if the requested borrow amount is valid for the specified borrower
+      * based on the borrowers current holdings and the minimum collateral to borrow ratio
       * @param borrower the borrower whose collateral should be examined
       * @param borrowAmount the requested (or current) borrow amount
       * @param borrowAsset denomination of borrow
-      * @return boolean true if the requested amount is valid and false otherwise
+      * @return boolean true if the requested amount is acceptable and false otherwise
       */
-    function validCollateralRatioBorrower(address borrower, uint256 borrowAmount, address borrowAsset) internal returns (bool) {
+    function canBorrowAssetAmount(address borrower, uint256 borrowAmount, address borrowAsset) internal returns (bool) {
 
         uint256 borrowValue = priceOracle.getAssetValue(borrowAsset, borrowAmount);
         uint256 maxBorrowAvailable = getMaxBorrowAvailable(borrower);

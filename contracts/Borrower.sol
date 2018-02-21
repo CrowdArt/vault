@@ -70,8 +70,8 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
             return false;
         }
 
-        if (!validCollateralRatio(amount, asset)) {
-            // validCollateralRatio generates a graceful failure message on failure
+        if (!canBorrowAssetAmount(msg.sender, amount, asset)) {
+            // canBorrowAssetAmount generates a graceful failure message on failure
             return false;
         }
 
@@ -284,17 +284,6 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
         }
 
         return true;
-    }
-
-
-    /**
-      * @notice `validCollateralRatio` determines if a the requested amount is valid based on the minimum collateral ratio
-      * @param borrowAmount the requested borrow amount
-      * @param borrowAsset denomination of borrow
-      * @return boolean true if the requested amount is valid and false otherwise
-      */
-    function validCollateralRatio(uint256 borrowAmount, address borrowAsset) internal returns (bool) {
-        return validCollateralRatioBorrower(msg.sender, borrowAmount, borrowAsset);
     }
 
 
