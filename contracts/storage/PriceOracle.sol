@@ -90,7 +90,7 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
         return (srcValue * srcAssetAmount) / targetValue;
     }
 
-    /*
+    /**
      * `setAssetValue` sets the value of an asset in Compound.
      *
      * @param asset The address of the asset to set
