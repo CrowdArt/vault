@@ -1,6 +1,5 @@
 pragma solidity ^0.4.19;
 
-import "./Ledger.sol";
 import "./CollateralCalculator.sol";
 import "./base/Owned.sol";
 import "./base/Graceful.sol";
@@ -13,7 +12,7 @@ import "./storage/BorrowStorage.sol";
   * @author Compound
   * @notice A borrow account allows customer's to borrow assets, holding other assets as collateral.
   */
-contract Borrower is Graceful, Owned, Ledger, CollateralCalculator {
+contract Borrower is Graceful, Owned, CollateralCalculator {
     BorrowStorage public borrowStorage;
 
     uint64 public constant discountRateScale = 10 ** 9;

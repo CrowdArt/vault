@@ -70,6 +70,23 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
     }
 
     /**
+      * @notice `canWithdrawCollateral` returns true if the eth-equivalent value of asset <= `getMaxWithdrawAvailable`
+      * @param account account that wants to withdraw
+      * @param asset proposed for withdrawal
+      * @param amount amount of asset proposed for withdrawal
+      */
+    function canWithdrawCollateral(address account, address asset, uint256 amount) public returns (bool) {
+        uint256 maxWithdrawValue = getMaxWithdrawAvailable(account);
+
+        uint256 withdrawValue = priceOracle.getAssetValue(asset, amount);
+        bool result = maxWithdrawValue >= withdrawValue;
+        if(!result) {
+            failure("Collateral::WithdrawLimit", uint256(asset), amount, maxWithdrawValue, withdrawValue);
+        }
+        return result;
+    }
+
+    /**
       * @notice `getMaxBorrowAvailable` gets the maximum borrow available given supply and any outstanding borrows
       * It is maxWithdrawAvailable / minimumCollateralRatio
       * @param account the address of the account

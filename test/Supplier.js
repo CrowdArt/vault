@@ -9,6 +9,7 @@ const InterestModel = artifacts.require("./InterestModel.sol");
 const InterestRateStorage = artifacts.require("./storage/InterestRateStorage.sol");
 const Supplier = artifacts.require("./Supplier.sol");
 const TokenStore = artifacts.require("./storage/TokenStore.sol");
+const PriceOracle = artifacts.require("./storage/PriceOracle.sol");
 
 const utils = require('./utils');
 
@@ -38,6 +39,7 @@ contract('Supplier', function(accounts) {
   var supplier;
   var etherToken;
   var tokenStore;
+  var priceOracle;
   var restores;
 
   before(async () => {
@@ -61,6 +63,11 @@ contract('Supplier', function(accounts) {
 
     await supplier.setTokenStore(tokenStore.address);
     await tokenStore.allow(supplier.address);
+
+    priceOracle = await PriceOracle.new();
+    await supplier.setPriceOracle(priceOracle.address);
+    await utils.setAssetValue(priceOracle, etherToken, 1, web3);
+
   });
 
   after(async() => {
@@ -310,7 +317,7 @@ contract('Supplier', function(accounts) {
     });
 
     describe("if you don't have sufficient funds", () => {
-      it("throws an error", async () => {
+      it("generates a graceful error message for InsufficientBalance", async () => {
         await utils.supplyEth(supplier, etherToken, 100, web3.eth.accounts[1]);
 
         // Withdrawing 101 is an error

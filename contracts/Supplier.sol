@@ -1,6 +1,6 @@
 pragma solidity ^0.4.19;
 
-import "./Ledger.sol";
+import "./CollateralCalculator.sol";
 import "./base/Owned.sol";
 import "./base/Graceful.sol";
 import "./base/Token.sol";
@@ -11,7 +11,7 @@ import "./storage/TokenStore.sol";
   * @author Compound
   * @notice A Supplier account allows functions for customer supplies and withdrawals.
   */
-contract Supplier is Graceful, Owned, Ledger {
+contract Supplier is Graceful, Owned, CollateralCalculator {
     TokenStore public tokenStore;
 
     /**
@@ -97,12 +97,16 @@ contract Supplier is Graceful, Owned, Ledger {
             return false;
         }
 
-        // TODO: Use collateral-adjusted balance.  If a customer has borrows, we shouldn't let them
-        // withdraw below their minimum collateral value.
+        // Make sure account holds enough of asset
         uint256 balance = getBalance(msg.sender, LedgerAccount.Supply, asset);
         if (amount > balance) {
             failure("Supplier::InsufficientBalance", uint256(asset), uint256(amount), uint256(to), uint256(balance));
             return false;
+        }
+
+        // make sure asset is not encumbered as collateral. requires eth-equivalent value calculation
+        if(!canWithdrawCollateral(msg.sender, asset, amount)) {
+            return false; // canWithdrawCollateral generates a graceful failure when it returns false
         }
 
         debit(LedgerReason.CustomerWithdrawal, LedgerAccount.Supply, msg.sender, asset, amount);
