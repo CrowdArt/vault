@@ -43,7 +43,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
         }
 
         // enforce non-zero input and de-scaled value >= 1
-        if(scaledRatio == 0 || scaledRatio/collateralRatioScale == 0) {
+        if(scaledRatio/collateralRatioScale == 0) {
             return failure("Collateral::InvalidScaledRatio", scaledRatio);
         }
 

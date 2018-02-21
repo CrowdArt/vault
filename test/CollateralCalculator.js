@@ -14,9 +14,9 @@ contract('CollateralCalculator', function(accounts) {
 
   describe('#setScaledMinimumCollateralRatio', () => {
     it("should change minimumCollateralRatio", async () => {
-      await collateralCalculator.setScaledMinimumCollateralRatio(30000, {from: web3.eth.accounts[0]});
+      await collateralCalculator.setScaledMinimumCollateralRatio(10000, {from: web3.eth.accounts[0]});
 
-      assert.equal((await collateralCalculator.scaledMinCollateralToBorrowRatio.call()).valueOf(), 30000);
+      assert.equal((await collateralCalculator.scaledMinCollateralToBorrowRatio.call()).valueOf(), 10000);
     });
 
     it("should emit event", async () => {
@@ -29,6 +29,15 @@ contract('CollateralCalculator', function(accounts) {
             newScaledMinimumCollateralRatio: web3.toBigNumber('40000')
           }
         }]);
+    });
+
+    // minimumCollateralRatio < scale represents a collateral to borrow ratio < 1, which is not allowed
+    it("should reject minimumCollateralRatio < scale", async () => {
+      const accepted = await collateralCalculator.setScaledMinimumCollateralRatio.call(9999, {from: web3.eth.accounts[0]});
+
+      assert.equal(accepted, false);
+
+      assert.equal((await collateralCalculator.scaledMinCollateralToBorrowRatio.call()).valueOf(), 20000);
     });
 
     it("should be owner only", async () => {
