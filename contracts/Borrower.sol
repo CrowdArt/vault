@@ -129,18 +129,18 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
       * @param borrowedAsset the type of asset that was borrowed and that would be supplied by the msg.sender
       * @param borrowedAssetAmount how much of the borrowed asset msg.sender plans to supply; it will be applied to reduce
       * the balance of the borrow. NOTE: sender should first true up their balance if interest must be accrued in order
-      * to supply borrowedAssetAmount
-      * @param assetToLiquidate what asset msg.sender should receive in exchange- note that this will be
+      * to supply collateralAsset
+      * @param collateralAsset what asset msg.sender should receive in exchange- note that this will be
       * transferred from the borrower, so the borrower must have enough of the asset to support the amount resulting
       * from the borrowedAssetAmount and the discounted conversion price
       * @return the amount of collateral that would be received AT CURRENT PRICES. If 0 is returned, no liquidation
       * would occur. Check logs for failure reason.
       */
-    function previewLiquidateCollateral(address borrower, address borrowedAsset, uint borrowedAssetAmount, address assetToLiquidate) public returns (uint256) {
+    function previewLiquidateCollateral(address borrower, address borrowedAsset, uint borrowedAssetAmount, address collateralAsset) public returns (uint256) {
 
         // Do basic checks first before running up gas costs.
-        if (borrowedAsset == assetToLiquidate) {
-            failure("Liquidation::CollateralSameAsBorrow", uint256(assetToLiquidate), uint256(borrowedAsset));
+        if (borrowedAsset == collateralAsset) {
+            failure("Liquidation::CollateralSameAsBorrow", uint256(collateralAsset), uint256(borrowedAsset));
             return 0;
         }
 
@@ -188,10 +188,10 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
         // How much collateral should the liquidator receive?
         uint256 seizeCollateralAmount =
             getConvertedAssetValueWithDiscount(borrowedAsset, borrowedAssetAmount,
-                assetToLiquidate, liquidationDiscountRateBPS);
+                collateralAsset, liquidationDiscountRateBPS);
 
         // Make sure borrower has enough of the requested collateral
-        uint256 collateralBalance = getBalance(borrower, LedgerAccount.Supply, assetToLiquidate);
+        uint256 collateralBalance = getBalance(borrower, LedgerAccount.Supply, collateralAsset);
         if(collateralBalance < seizeCollateralAmount) {
             failure("Liquidation::InsufficientCollateral", collateralBalance, seizeCollateralAmount);
             return 0;
@@ -209,22 +209,22 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
       * must hold asset in the Compound Money Market.
       * @param borrowedAssetAmount how much of the borrowed asset msg.sender is supplying; it will be applied to reduce
       * the balance of the borrow
-      * @param assetToLiquidate what asset msg.sender should receive in exchange- note that this will be
+      * @param collateralAsset what asset msg.sender should receive in exchange- note that this will be
       * transferred from the borrower, so the borrower must have enough of the asset to support the amount resulting
       * from the borrowedAssetAmount and the discounted conversion price
       * @return the amount of collateral that was delivered to msg.sender. If 0 is returned, no liquidation occurred.
       * Check logs for failure reason.
       */
-    function liquidateCollateral(address borrower, address borrowedAsset, uint borrowedAssetAmount, address assetToLiquidate) public returns (uint256) {
+    function liquidateCollateral(address borrower, address borrowedAsset, uint borrowedAssetAmount, address collateralAsset) public returns (uint256) {
 
-        uint256 liquidationAmount = previewLiquidateCollateral(borrower, borrowedAsset, borrowedAssetAmount, assetToLiquidate);
+        uint256 liquidationAmount = previewLiquidateCollateral(borrower, borrowedAsset, borrowedAssetAmount, collateralAsset);
         if(liquidationAmount == 0) {
             return 0; // previewLiquidateCollateral should have generated a graceful failure message
         }
 
         // seize collateral
-        credit(LedgerReason.CollateralPayBorrow, LedgerAccount.Supply, msg.sender, assetToLiquidate, liquidationAmount);
-        debit(LedgerReason.CollateralPayBorrow, LedgerAccount.Supply, borrower, assetToLiquidate, liquidationAmount);
+        credit(LedgerReason.CollateralPayBorrow, LedgerAccount.Supply, msg.sender, collateralAsset, liquidationAmount);
+        debit(LedgerReason.CollateralPayBorrow, LedgerAccount.Supply, borrower, collateralAsset, liquidationAmount);
 
         // reduce borrow balance
         credit(LedgerReason.CollateralPayBorrow, LedgerAccount.Borrow, borrower, borrowedAsset, borrowedAssetAmount);
