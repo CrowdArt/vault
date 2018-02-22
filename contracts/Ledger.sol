@@ -234,7 +234,7 @@ contract Ledger is Graceful, Owned {
       * @param asset the asset to query
       * @return true if the account is an asset false otherwise
       */
-    function getBalance(address customer, LedgerAccount ledgerAccount, address asset) internal returns (uint) {
+    function getBalance(address customer, LedgerAccount ledgerAccount, address asset) internal view returns (uint) {
         return ledgerStorage.getBalance(customer, uint8(ledgerAccount), asset);
     }
 

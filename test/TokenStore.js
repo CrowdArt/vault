@@ -1,7 +1,7 @@
 "use strict";
 
 const TokenStore = artifacts.require("./storage/TokenStore.sol");
-const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const WETH9 = artifacts.require("./tokens/WETH9.sol");
 
 const utils = require('./utils');
 
@@ -10,7 +10,7 @@ contract('TokenStore', function(accounts) {
   var etherToken;
 
   beforeEach(async () => {
-    [tokenStore, etherToken] = await Promise.all([TokenStore.new(), EtherToken.new()]);
+    [tokenStore, etherToken] = await Promise.all([TokenStore.new(), WETH9.new()]);
     await tokenStore.allow(web3.eth.accounts[0]);
   });
 

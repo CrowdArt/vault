@@ -57,6 +57,7 @@ function validateRateWithMaxRatio(assert, annualBPS, actual, expected, maxRatio,
 }
 
 async function createAndApproveWeth(ledger, etherToken, amount, account, approvalAmount) {
+
   await etherToken.deposit({from: account, value: amount});
   await etherToken.approve(ledger.address, approvalAmount || amount, {from: account});
 };
@@ -188,7 +189,7 @@ async function assertGracefulFailureCollectMissing(contract, failure, failurePar
 async function awaitGracefulFailureCollectMissing(assert, contract, failure, failureParamsOrExecFn, maybeExecFn) {
 
   const problems = await assertGracefulFailureCollectMissing(contract,failure, failureParamsOrExecFn, maybeExecFn);
-  assert.equal(0, problems.length, problems.join("\n\t\t"));
+  assert.equal(problems.length, 0, problems.join("\n\t\t"));
 
 }
 
@@ -217,7 +218,7 @@ async function assertEventsCollectMissing(contract, requiredEvents, args) {
 async function awaitAssertEventsCollectMissing(assert, contract, expectedEvents, args) {
 
   const problems = await assertEventsCollectMissing(contract, expectedEvents, args);
-  assert.equal(0, problems.length, problems.join("\n\t\t"));
+  assert.equal(problems.length, 0, problems.join("\n\t\t"));
 
 }
 

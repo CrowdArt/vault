@@ -22,7 +22,7 @@ contract WalletFactory is Owned {
     /**
       * @notice Creates a new Wallet Factory.
       * @param moneyMarketAddress_ Address of Compound MoneyMarket contract
-      * @param etherTokenAddress_ Address of Compound EtherToken contract
+      * @param etherTokenAddress_ Address of Compound WETH9 contract
       */
     function WalletFactory(address moneyMarketAddress_, address etherTokenAddress_) public {
         moneyMarketAddress = moneyMarketAddress_;

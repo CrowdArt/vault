@@ -3,7 +3,8 @@ pragma solidity ^0.4.19;
 import "./CollateralCalculator.sol";
 import "./base/Owned.sol";
 import "./base/Graceful.sol";
-import "./base/Token.sol";
+import "./eip20/EIP20.sol";
+import "./eip20/EIP20Interface.sol";
 import "./storage/TokenStore.sol";
 
 /**
@@ -63,11 +64,20 @@ contract Supplier is Graceful, Owned, CollateralCalculator {
             return false;
         }
 
-        // Transfer `tokenStore` the asset from `msg.sender`
-        if (!Token(asset).transferFrom(msg.sender, address(tokenStore), amount)) {
+        // EIP20 reverts if not allowed or balance too low.  We do a pre-check to enable a graceful failure message instead.
+        EIP20 token = EIP20(asset);
+        uint256 allowance = token.allowance(msg.sender, address(this));
+        uint256 balance = token.balanceOf(msg.sender);
+        bool allowed = (balance >= amount && allowance >= amount);
+        failure("DEBUG::customerSupply allowance, balance, amount", allowance, balance, amount);
+
+        if(!allowed) {
             failure("Supplier::TokenTransferFromFail", uint256(asset), uint256(amount), uint256(msg.sender));
             return false;
         }
+
+
+        token.transferFrom(msg.sender, address(tokenStore), amount);
 
         debit(LedgerReason.CustomerSupply, LedgerAccount.Cash, msg.sender, asset, amount);
         credit(LedgerReason.CustomerSupply, LedgerAccount.Supply, msg.sender, asset, amount);

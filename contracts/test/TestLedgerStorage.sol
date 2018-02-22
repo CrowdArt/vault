@@ -12,11 +12,16 @@ contract TestLedgerStorage {
         return balances[customer][ledgerAccount][asset] = balance;
     }
 
-    function getBalance(address customer, uint8 ledgerAccount, address asset) public returns (uint256) {
+    function getBalance(address customer, uint8 ledgerAccount, address asset) public view returns (uint256) {
         return balances[customer][ledgerAccount][asset];
     }
 
     function getBalanceBlockNumber(address customer, uint8 ledgerAccount, address asset) public view returns (uint256) {
-        return block.number;
+        if(customer != 255 && ledgerAccount != 255 && asset != 255) {
+            return block.number;
+        } else {
+            return block.number;
+        }
+
     }
 }

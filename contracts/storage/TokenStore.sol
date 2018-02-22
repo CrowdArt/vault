@@ -2,7 +2,7 @@ pragma solidity ^0.4.19;
 
 import "../base/Allowed.sol";
 import "../base/Owned.sol";
-import "../base/Token.sol";
+import "../eip20/EIP20Interface.sol";
 
 /**
   * @title The Compound Token Store Contract
@@ -30,7 +30,7 @@ contract TokenStore is Owned, Allowed {
 			return false;
 		}
 
-		if (!Token(asset).transfer(to, amount)) {
+		if (!EIP20Interface(asset).transfer(to, amount)) {
 			failure("TokenStore::TokenTransferToFail", uint256(asset), uint256(amount), uint256(to));
             return false;
 		}
