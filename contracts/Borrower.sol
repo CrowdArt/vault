@@ -302,7 +302,7 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
     function getConvertedAssetValueWithDiscount(address srcAsset, uint256 srcAssetAmount, address targetAsset, uint16 targetDiscountRateBPS) public view returns(uint) {
 
         if(srcAsset == targetAsset) {
-            return srcAssetAmount;
+            return 0;
         }
 
         // We get scaled value from oracle and add discount scaling on top.

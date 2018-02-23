@@ -451,6 +451,16 @@ contract('MoneyMarket', function(accounts) {
         assert.equal(balance.valueOf(), 2631578947368421052);
       });
     });
+
+    describe('conversion to same asset', async () => {
+      it("returns 0", async () => {
+        await priceOracle.setAssetValue(tokenAddrs.BAT, toAssetValue(2) , {from: web3.eth.accounts[0]});
+        const discount_bps = 500;
+
+        const balance = await moneyMarket.getConvertedAssetValueWithDiscount.call(tokenAddrs.BAT, (10 ** 18), tokenAddrs.BAT, discount_bps);
+        assert.equal(balance.valueOf(), 0);
+      });
+    });
   });
 
   // TODO: Make sure we store correct rates for all operations
