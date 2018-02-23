@@ -13,6 +13,7 @@ var Promise = require("bluebird");
 var BigNumber = require('bignumber.js');
 var one = new BigNumber(1);
 const toAssetValue = (value) => (value * 10 ** 9);
+const fromAssetValue = (value) => (value / 10 ** 9);
 const interestRateScale = 10 ** 17;
 const blocksPerYear = 2102400;
 const annualBPSToScaledPerBlockRate = (value) => Math.trunc((value * interestRateScale) / (10000 * blocksPerYear));
@@ -120,6 +121,106 @@ async function assertGracefulFailure(contract, failure, failureParamsOrExecFn, m
   });
 }
 
+// Skips unexpected events. Only reports problems if expected event not seen or expected event has
+// unexpected parameters.
+async function assertGracefulFailureCollectMissing(contract, failure, failureParamsOrExecFn, maybeExecFn) {
+  var failureParams;
+  var execFn;
+
+  // Allow failureParams to be optional.
+  if (maybeExecFn) {
+    execFn = maybeExecFn;
+    failureParams = failureParamsOrExecFn;
+  } else {
+    failureParams = null;
+    execFn = failureParamsOrExecFn;
+  }
+
+  await execFn();
+
+  return new Promise((resolve, reject) => {
+
+    var problems = [];
+    var numSkipped = 0;
+    var event = contract.allEvents();
+    event.get((error, events) => {
+      var found = false;
+
+      for (event of events) {
+        if (event.event === 'GracefulFailure') {
+          if (event.args.errorMessage === failure) {
+            found = true; // found args.errorMessage but still need to verify params, if any
+            var numBadParams = 0;
+            if (failureParams) {
+
+              for (var i = 0; i < failureParams.length; i++) {
+                var expected = failureParams[i];
+                var actual = event.args.values[i];
+
+                if (failureParams[i] && expected != actual) {
+                  var msg = `TEST ERROR: GracefulFailure parameter mismatch #${i+1}, "${expected}" expected, got "${actual}"`;
+                  problems.push(msg);
+                  numBadParams += 1;
+                }
+              }
+            }
+
+            resolve(problems);
+          } else {
+              var msg = `TEST WARNING: GracefulFailure unexpected event "${event.args.errorMessage}"`;
+              console.log(msg);
+          }
+        }
+      }
+
+      if (!found) {
+        var msg = `TEST ERROR: GracefulFailure "${failure}" not detected. numSkipped="${numSkipped}`;
+        problems.push(msg);
+        console.log(msg);
+        resolve(problems);
+      }
+    });
+
+    event.stopWatching();
+  });
+}
+
+async function awaitGracefulFailureCollectMissing(assert, contract, failure, failureParamsOrExecFn, maybeExecFn) {
+
+  const problems = await assertGracefulFailureCollectMissing(contract,failure, failureParamsOrExecFn, maybeExecFn);
+  assert.equal(0, problems.length, problems.join("\n\t\t"));
+
+}
+
+// Log missing events rather than throwing. This avoids non-deterministic absence of
+// missing logs info.
+// Caller must assert size of returned missing elements array == 0.
+// There's probably another wrapper we can put on this to do the assertion.
+async function assertEventsCollectMissing(contract, requiredEvents, args) {
+  return new Promise((resolve, reject) => {
+    var missing = [];
+    var event = contract.allEvents(args);
+    event.get((error, events) => {
+      _.each(requiredEvents, (requiredEvent) => {
+        if (!_.find(events, requiredEvent)) {
+          var item = "TEST FAILURE: " + requiredEvent.event + "(" + JSON.stringify(requiredEvent.args) + ") wasn't logged";
+          missing.push(item);
+          console.log(item);
+        }
+      })
+      resolve(missing);
+    });
+    event.stopWatching();
+  });
+}
+
+async function awaitAssertEventsCollectMissing(assert, contract, expectedEvents, args) {
+
+  const problems = await assertEventsCollectMissing(contract, expectedEvents, args);
+  assert.equal(0, problems.length, problems.join("\n\t\t"));
+
+}
+
 async function increaseTime(web3, seconds) {
   return new Promise((resolve, reject) => {
     web3.currentProvider.sendAsync({
@@ -148,6 +249,34 @@ async function mineBlock(web3) {
   });
 }
 
+async function evmSnapshot(web3) {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.sendAsync({
+      jsonrpc: "2.0",
+      method: "evm_snapshot",
+      params: [],
+      id: new Date().getTime()
+    }, (err, result) => {
+      if(err){ return reject(err) }
+      return resolve(result)
+    });
+  });
+}
+
+async function evmRestore(web3, snapshot) {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.sendAsync({
+      jsonrpc: "2.0",
+      method: "evm_restore",
+      params: [snapshot],
+      id: new Date().getTime()
+    }, (err, result) => {
+      if(err){ return reject(err) }
+      return resolve(result)
+    });
+  });
+}
+
 async function mineBlocks(web3, blocksToMine) {
   var promises = [];
 
@@ -168,18 +297,6 @@ async function toNumber(maybePromiseMaybeDecimal) {
   }
 }
 
-async function takeSnapshot(moneyMarket) {
-  const snapshot = {};
-
-  await Promise.all(storageTypes.map(async ([contract, _, constructor]) => {
-    if (moneyMarket[contract] !== undefined) {
-      snapshot[contract] = constructor.at(await moneyMarket[contract].call());
-    }
-  }));
-
-  return snapshot;
-}
-
 module.exports = {
   mineBlocks: mineBlocks,
   annualBPSToScaledPerBlockRate: annualBPSToScaledPerBlockRate,
@@ -190,24 +307,9 @@ module.exports = {
   // Simple function to stop futzing over numbers and promises in our tests
   toNumber: toNumber,
 
-  takeSnapshot: takeSnapshot,
+  takeSnapshot: evmSnapshot,
 
-  restoreSnapshot: async function(moneyMarket, snapshot) {
-    const newSnapshot = takeSnapshot(moneyMarket);
-    const promises = [];
-
-    await storageTypes.forEach(async ([contract, fun]) => {
-      if (newSnapshot[contract] !== snapshot[contract].address) {
-        promises.push(moneyMarket[fun](snapshot[contract].address));
-      }
-
-      if (snapshot[contract].allowed && await snapshot[contract].allowed.call() != moneyMarket.address) {
-        promises.push(snapshot[contract].allow(moneyMarket.address));
-      }
-    });
-
-    await Promise.all(promises);
-  },
+  restoreSnapshot: evmRestore,
 
   allowAll: async function(contracts, allowed) {
     const restores = await Promise.all(contracts.map(async (contract) => {
@@ -328,7 +430,7 @@ module.exports = {
   },
 
   ledgerAccountBalance: async function(ledger, account, token) {
-    return (await ledger.getSupplyBalance.call(account, token)).toNumber();
+    return await toNumber(ledger.getSupplyBalance.call(account, token));
   },
 
   tokenBalance: async function(token, account) {
@@ -341,6 +443,10 @@ module.exports = {
 
   setAssetValue: async function(oracle, asset, amountInWei, web3) {
     return await oracle.setAssetValue(asset.address, toAssetValue(amountInWei), {from: web3.eth.accounts[0]});
+  },
+
+  getAssetValue: async function(oracle, asset, quantityInWei) {
+    return (await oracle.getAssetValue(asset.address, quantityInWei)).toNumber();
   },
 
   addBorrowableAsset: async function(borrower, asset, web3) {
@@ -383,5 +489,9 @@ module.exports = {
   },
   assertFailure,
   assertGracefulFailure,
+  assertGracefulFailureCollectMissing,
+  awaitGracefulFailureCollectMissing,
+  assertEventsCollectMissing,
+  awaitAssertEventsCollectMissing,
   createAndApproveWeth,
 }

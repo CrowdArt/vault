@@ -113,7 +113,7 @@ contract('PriceOracle', function(accounts) {
     });
 
 
-    describe('conversion in terms a more valuable asset', async () => {
+    describe('conversion in terms of a more valuable asset', async () => {
       it("returns amount", async () => {
         await priceOracle.setAssetValue(tokenAddrs.BAT, toAssetValue(2) , {from: web3.eth.accounts[0]});
         await priceOracle.setAssetValue(tokenAddrs.OMG, toAssetValue(5) , {from: web3.eth.accounts[0]});

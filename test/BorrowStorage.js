@@ -42,29 +42,7 @@ contract('BorrowStorage', function(accounts) {
     });
   });
 
-  describe('#setMinimumCollateralRatio', () => {
-    it("should change minimumCollateralRatio", async () => {
-      await borrowStorage.setMinimumCollateralRatio(3, {from: web3.eth.accounts[0]});
 
-      assert.equal((await borrowStorage.minimumCollateralRatio.call()).valueOf(), 3);
-    });
-
-    it("should emit event", async () => {
-      await borrowStorage.setMinimumCollateralRatio(4, {from: web3.eth.accounts[0]});
-
-      await utils.assertEvents(borrowStorage, [
-      {
-        event: "MinimumCollateralRatioChange",
-        args: {
-          newMinimumCollateralRatio: web3.toBigNumber('4')
-        }
-      }]);
-    });
-
-    it("should be owner only", async () => {
-      await utils.assertOnlyOwner(borrowStorage, borrowStorage.setMinimumCollateralRatio.bind(null, 5), web3);
-    });
-  });
 
   describe('#borrowableAsset', async () => {
     it('checks if borrowable asset', async () => {

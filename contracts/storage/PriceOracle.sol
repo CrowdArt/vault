@@ -44,6 +44,14 @@ contract PriceOracle is Owned, Allowed, ArrayHelper {
     }
 
     /**
+      *
+      * @return the scaled value of asset. divide by `assetMultiplier` to de-scale
+      */
+    function getScaledValue(address asset) public view returns (uint) {
+        return values[asset];
+    }
+
+    /**
      * `getAssetValue` returns the PriceOracle's view of the current
      * value of a given asset, or zero if unknown.
      *
