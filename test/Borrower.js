@@ -24,7 +24,7 @@ contract('Borrower', function(accounts) {
 
     it("returns expected amount", async () => {
       const discountedPrice = await borrower.scaledDiscountPrice.call(10, 500);
-      assert.equal(discountedPrice.valueOf(), 9500000000);
+      assert.equal(discountedPrice.valueOf(), 950000);
     });
   });
 });

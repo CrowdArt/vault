@@ -15,7 +15,7 @@ import "./storage/BorrowStorage.sol";
 contract Borrower is Graceful, Owned, CollateralCalculator {
     BorrowStorage public borrowStorage;
 
-    uint64 public constant discountRateScale = 10 ** 9;
+    uint64 public constant discountRateScale = 10 ** 5;
     // Given a real number decimal, to convert it to basis points you multiply by 10000.
     // For example, we know 100 basis points = 1% = .01.  We get the basis points from the decimal: .01 * 10000 = 100
     uint16 constant basisPointMultiplier = 10000;
