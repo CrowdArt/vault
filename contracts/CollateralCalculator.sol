@@ -152,7 +152,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
         uint256 supplyValue = 0;
         uint256 borrowValue = 0;
 
-        for (uint64 i = 0; i < assetCount; i++) {
+        for (uint8 i = 0; i < assetCount; i++) {
             address asset = priceOracle.assets(i);
             supplyValue += priceOracle.getAssetValue(asset, getBalance(acct, LedgerAccount.Supply, asset));
             borrowValue += priceOracle.getAssetValue(asset, getBalance(acct, LedgerAccount.Borrow, asset));
