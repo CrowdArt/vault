@@ -14,4 +14,19 @@ contract TestBalanceSheet {
     function getBalanceSheetBalance(address asset, uint8 ledgerAccount) public view returns (uint256) {
         return balanceSheet[ledgerAccount][asset];
     }
+
+    // WARNING DOES NOT RECORD ACCURATE RESULTS
+    function increaseAccountBalance(address asset, uint8 ledgerAccount, uint256 amount) public returns (bool) {
+
+        // do something just to prevent compiler warnings about unused variables and 'function can be declared view'
+        balanceSheet[ledgerAccount][asset] = amount;
+        return true;
+    }
+
+    // WARNING DOES NOT RECORD ACCURATE RESULTS
+    function decreaseAccountBalance(address asset, uint8 ledgerAccount, uint256 amount) public returns (bool) {
+        // do something just to prevent compiler warnings about unused variables and 'function can be declared view'
+        balanceSheet[ledgerAccount][asset] = amount;
+        return true;
+    }
 }

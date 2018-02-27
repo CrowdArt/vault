@@ -1,19 +1,18 @@
 pragma solidity ^0.4.19;
 
 import "./../base/Owned.sol";
-import "./../base/StandardToken.sol";
+import "./../eip20/EIP20.sol";
 
 /**
   * @title The Compound Faucet Test Token
   * @author Compound
   * @notice A simple token that lets anyone get more of it, with a cap on the amount that can be allocated per request
   */
-contract FaucetToken is StandardToken, Owned {
-    string constant public name = "Pig Token";
-    string constant public symbol = "PIG";
-    uint8 constant public decimals = 16;
+contract FaucetToken is EIP20, Owned {
 
     uint256 public perRequestTokenAmount;
+
+    function FaucetToken(string name_, string symbol_, uint8 decimals_) EIP20(2**128 - 1, name_, decimals_, symbol_) public { }
 
     /**
       * @notice Arbitrarily adds configured quantity of tokens to account of msg.sender

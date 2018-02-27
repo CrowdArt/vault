@@ -3,7 +3,6 @@ pragma solidity ^0.4.19;
 import "./CollateralCalculator.sol";
 import "./base/Owned.sol";
 import "./base/Graceful.sol";
-import "./base/Token.sol";
 import "./storage/PriceOracle.sol";
 import "./storage/BorrowStorage.sol";
 

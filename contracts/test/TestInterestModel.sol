@@ -5,11 +5,11 @@ pragma solidity ^0.4.19;
   * @author Compound
   */
 contract TestInterestModel {
-    function getScaledSupplyRatePerBlock(uint256 supply, uint256 borrows) public view returns (uint64) {
+    function getScaledSupplyRatePerBlock(uint256 supply, uint256 borrows) public pure returns (uint64) {
         return uint64(supply * 10000 + borrows);
     }
 
-    function getScaledBorrowRatePerBlock(uint256 supply, uint256 borrows) public view returns (uint64) {
+    function getScaledBorrowRatePerBlock(uint256 supply, uint256 borrows) public pure returns (uint64) {
         return uint64(borrows * 10000 + supply);
     }
 }

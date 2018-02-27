@@ -18,7 +18,8 @@ const InterestModel = artifacts.require("./InterestModel.sol");
 const TokenStore = artifacts.require("./storage/TokenStore.sol");
 const PriceOracle = artifacts.require("./storage/PriceOracle.sol");
 const FaucetToken = artifacts.require("./token/FaucetToken.sol");
-const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const WETH9 = artifacts.require("./tokens/WETH9.sol");
+const EIP20 = artifacts.require("./eip20/EIP20.sol");
 const Wallet = artifacts.require("./Wallet.sol");
 const utils = require('./utils');
 const tokenAddrs = utils.tokenAddrs;
@@ -62,8 +63,8 @@ contract('MoneyMarket', function(accounts) {
 
   beforeEach(async () => {
     moneyMarket = await MoneyMarket.new();
-    faucetToken = await FaucetToken.new();
-    etherToken = await EtherToken.new();
+    faucetToken = await FaucetToken.new("Pig Token", "PIG", 16);
+    etherToken = await WETH9.new();
 
     priceOracle = await PriceOracle.new();
     moneyMarket.setPriceOracle(priceOracle.address);
@@ -104,12 +105,12 @@ contract('MoneyMarket', function(accounts) {
 
       // 100000 wei WETH to supplier so borrower can borrow it
       await utils.supplyEth(moneyMarket, etherToken, 100000, web3.eth.accounts[supplier]);
-      // Allocate 1000 pig tokens to borrower and approve 900 tokens to be moved into compound
+
+      // Allocate 1000 pig tokens to borrower, approve 900 tokens to be moved into compound, and then move them to compound.
       await faucetToken.allocateTo(web3.eth.accounts[borrower], 1000, {from: web3.eth.accounts[system]});
       await faucetToken.approve(moneyMarket.address, 900, {from: web3.eth.accounts[borrower]});
+      await moneyMarket.customerSupply(faucetToken.address, 900, {from: web3.eth.accounts[borrower]});
 
-      // Supply the tokens which are collateral
-      moneyMarket.customerSupply(faucetToken.address, 900, {from: web3.eth.accounts[borrower]});
       // verify balance in ledger
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[supplier], etherToken.address), 100000);
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[borrower], faucetToken.address), 900);
@@ -410,12 +411,13 @@ contract('MoneyMarket', function(accounts) {
       await testBalanceSheet.setBalanceSheetBalance(faucetToken.address, LedgerAccount.Supply, 50);
       await testBalanceSheet.setBalanceSheetBalance(faucetToken.address, LedgerAccount.Borrow, 150);
 
-      // Approve wallet for 55 tokens and supply them
-      await faucetToken.approve(moneyMarket.address, 100, {from: web3.eth.accounts[0]});
-      await moneyMarket.customerSupply(faucetToken.address, 100, {from: web3.eth.accounts[0]});
+      // give supplier some tokens
+      await faucetToken.allocateTo(web3.eth.accounts[supplier], 500, {from: web3.eth.accounts[system]});
+      // Approve wallet for 100 tokens and supply them
+      await faucetToken.approve(moneyMarket.address, 100, {from: web3.eth.accounts[supplier]});
+      await moneyMarket.customerSupply(faucetToken.address, 100, {from: web3.eth.accounts[supplier]});
 
       const blockNumber = await interestRateStorage.blockInterestBlock(LedgerAccount.Supply, faucetToken.address);
-
       assert.equal(await utils.toNumber(interestRateStorage.blockTotalInterest(LedgerAccount.Supply, faucetToken.address, blockNumber)), 0);
       assert.equal(await utils.toNumber(interestRateStorage.blockInterestRate(LedgerAccount.Supply, faucetToken.address, blockNumber)), 14269406392);
     });

@@ -60,7 +60,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
       * @param account the address of the account
       * @return uint256 the maximum eth-equivalent value that can be withdrawn
       */
-    function getMaxWithdrawAvailable(address account) public returns (uint256) {
+    function getMaxWithdrawAvailable(address account) public view returns (uint256) {
 
         ValueEquivalents memory ve = getValueEquivalents(account);
 
@@ -77,7 +77,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
       * @param account the address of the account
       * @return uint256 the maximum additional eth equivalent borrow value that can be added to account
       */
-    function getMaxBorrowAvailable(address account) public returns (uint256) {
+    function getMaxBorrowAvailable(address account) public view returns (uint256) {
 
         return (getMaxWithdrawAvailable(account) * collateralRatioScale) / scaledMinCollateralToBorrowRatio;
     }
@@ -127,7 +127,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
       * @param borrower account to check
       * @return the collateral shortfall value, or 0 if borrower has enough collateral
       */
-    function collateralShortfall(address borrower) public returns (uint256) {
+    function collateralShortfall(address borrower) public view returns (uint256) {
 
         ValueEquivalents memory ve = getValueEquivalents(borrower);
 
@@ -147,7 +147,7 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
         uint256 borrowValue;
     }
 
-    function getValueEquivalents(address acct) internal returns (ValueEquivalents memory) {
+    function getValueEquivalents(address acct) internal view returns (ValueEquivalents memory) {
         uint256 assetCount = priceOracle.getAssetsLength(); // from PriceOracle
         uint256 supplyValue = 0;
         uint256 borrowValue = 0;

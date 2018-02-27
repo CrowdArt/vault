@@ -44,7 +44,7 @@ contract InterestRateStorage is Owned, Allowed {
       * @dev this will fail if `saveBlockInterest` hasn't been called for block `startingBlock` or `endingBlock`
       * @return the principal (with interest) as of `endingBlock`
       */
-    function getBalanceAt(uint8 ledgerAccount, address asset, uint256 startingBlock, uint256 endingBlock, uint256 principal) public returns (uint256) {
+    function getBalanceAt(uint8 ledgerAccount, address asset, uint256 startingBlock, uint256 endingBlock, uint256 principal) public view returns (uint256) {
         // Then, get the total interest rates which are stored.
         uint256 startingTotalInterest = blockTotalInterest[ledgerAccount][asset][startingBlock];
         uint256 endingTotalInterest = blockTotalInterest[ledgerAccount][asset][endingBlock];

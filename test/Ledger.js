@@ -1,7 +1,7 @@
 "use strict";
 
 const Ledger = artifacts.require("./Ledger.sol");
-const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const WETH9 = artifacts.require("./tokens/WETH9.sol");
 const TestLedgerStorage = artifacts.require("./test/TestLedgerStorage.sol");
 const TestInterestModel = artifacts.require("./test/TestInterestModel.sol");
 const TestBalanceSheet = artifacts.require("./test/TestBalanceSheet.sol");
@@ -34,7 +34,7 @@ contract('Ledger', function(accounts) {
     testInterestModel = await TestInterestModel.new();
     testBalanceSheet = await TestBalanceSheet.new();
 
-    [ledger, etherToken] = await Promise.all([Ledger.new(), EtherToken.new()]);
+    [ledger, etherToken] = await Promise.all([Ledger.new(), WETH9.new()]);
 
     await ledger.setLedgerStorage(testLedgerStorage.address);
     await ledger.setBalanceSheet(testBalanceSheet.address);

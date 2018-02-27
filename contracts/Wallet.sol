@@ -2,7 +2,8 @@ pragma solidity ^0.4.19;
 
 import "./base/Owned.sol";
 import "./MoneyMarket.sol";
-import "./tokens/EtherToken.sol";
+import "./eip20/EIP20Interface.sol";
+import "./tokens/WETH9.sol";
 
 /**
   * @title The Compound Smart Wallet
@@ -12,7 +13,7 @@ import "./tokens/EtherToken.sol";
   */
 contract Wallet is Owned {
     MoneyMarket public moneyMarket;
-    EtherToken public etherToken;
+    WETH9 public etherToken;
 
     event Supply(address acct, address asset, uint256 amount);
     event Withdrawal(address acct, address asset, uint256 amount);
@@ -21,12 +22,12 @@ contract Wallet is Owned {
     /**
       * @notice Creates a new Wallet.
       * @param moneyMarketAddress Address of Compound MoneyMarket contract
-      * @param etherTokenAddress Address of EtherToken contract
+      * @param etherTokenAddress Address of WETH9 contract
       */
     function Wallet(address owner_, address moneyMarketAddress, address etherTokenAddress) public {
         owner = owner_;
         moneyMarket = MoneyMarket(moneyMarketAddress);
-        etherToken = EtherToken(etherTokenAddress);
+        etherToken = WETH9(etherTokenAddress);
     }
 
     /**
@@ -34,7 +35,7 @@ contract Wallet is Owned {
       * @return success or failure
       */
     function supplyEth() public payable returns (bool) {
-        // Transfer eth into EtherToken
+        // Transfer eth into WETH9
         // This should only fail if out-of-gas
         etherToken.deposit.value(msg.value)();
 
@@ -49,7 +50,7 @@ contract Wallet is Owned {
       */
     function supplyAsset(address asset, uint256 amount) public returns (bool) {
         // First, transfer in to this wallet
-        if (!Token(asset).transferFrom(msg.sender, address(this), amount)) {
+        if (!EIP20Interface(asset).transferFrom(msg.sender, address(this), amount)) {
             failure("Wallet::TokenTransferFailed");
             return false;
         }
@@ -65,7 +66,7 @@ contract Wallet is Owned {
       */
     function supplyDirect(address asset, uint256 amount) public returns (bool) {
         // Approve the moneyMarket to pull in this asset
-        if (!Token(asset).approve(address(moneyMarket), amount)) {
+        if (!EIP20Interface(asset).approve(address(moneyMarket), amount)) {
             failure("Wallet::AssetApproveFailed", uint256(msg.sender), uint256(asset), uint256(amount));
             return false;
         }
@@ -92,12 +93,12 @@ contract Wallet is Owned {
             return false;
         }
 
-        // Withdraw from Compound MoneyMarket contract to EtherToken
+        // Withdraw from Compound MoneyMarket contract to WETH9
         if (!moneyMarket.customerWithdraw(address(etherToken), amount, address(this))) {
             return false;
         }
 
-        // Now we have EtherTokens, let's withdraw them to Eth
+        // Now we have WETH9s, let's withdraw them to Eth
         // Note, this fails with `revert`
         etherToken.withdraw(amount);
 
@@ -189,7 +190,7 @@ contract Wallet is Owned {
       * @notice Returns the balance of Eth in this wallet via MoneyMarket Contract
       * @return Eth balance from MoneyMarket Contract
       */
-    function balanceEth() public view returns (uint256) {
+    function balanceEth() public returns (uint256) {
         return balance(address(etherToken));
     }
 
@@ -197,7 +198,7 @@ contract Wallet is Owned {
       * @notice Returns the balance of given asset in this wallet via MoneyMarket Contract
       * @return Asset balance from MoneyMarket Contract
       */
-    function balance(address asset) public view returns (uint256) {
+    function balance(address asset) public returns (uint256) {
         return moneyMarket.getSupplyBalance(address(this), asset);
     }
 
@@ -208,12 +209,12 @@ contract Wallet is Owned {
       */
     function() public payable {
         if (msg.sender == address(etherToken)) {
-            /* This contract unwraps EtherTokens during withdrawals.
+            /* This contract unwraps WETH9s during withdrawals.
              *
-             * When we unwrap a token, EtherToken sends this contract
+             * When we unwrap a token, WETH9 sends this contract
              * the value of the tokens in Ether. We should not treat this
              * as a new supply (!!), and as such, we choose to not call
-             * `supplyEth` for Ether transfers from EtherToken.
+             * `supplyEth` for Ether transfers from WETH9.
              */
 
             return;
