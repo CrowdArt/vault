@@ -25,6 +25,10 @@ contract('TokenStore', function(accounts) {
     it("should transfer tokens out", async () => {
       await utils.createAndTransferWeth(tokenStore.address, etherToken, 100, web3.eth.accounts[0]);
 
+      const result = await tokenStore.transferAssetOut.call(etherToken.address, web3.eth.accounts[1], 20, {from: holder});
+      // Should exit "true"
+      assert.equal(result, true);
+
       await tokenStore.transferAssetOut(etherToken.address, web3.eth.accounts[1], 20, {from: holder});
 
       // verify balances in W-Eth
