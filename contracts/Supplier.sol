@@ -71,7 +71,7 @@ contract Supplier is Graceful, Owned, CollateralCalculator {
         bool allowed = (balance >= amount && allowance >= amount);
 
         if(!allowed) {
-            failure("Supplier::TokenTransferFromFail", uint256(asset), uint256(amount), uint256(msg.sender));
+            failure("Supplier::TokenTransferFromFail", uint256(asset), uint256(amount), allowance, uint256(msg.sender));
             return false;
         }
 

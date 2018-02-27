@@ -139,7 +139,7 @@ contract('Supplier', function(accounts) {
       const balance = approvedAmount + 1;
       await utils.createAndApproveWeth(supplierContract, etherToken, balance, customerAccount, approvedAmount);
 
-      await utils.awaitGracefulFailureCollectMissing(assert, supplierContract, "Supplier::TokenTransferFromFail", [null, approvedAmount + 1, null], async () => {
+      await utils.awaitGracefulFailureCollectMissing(assert, supplierContract, "Supplier::TokenTransferFromFail", [null, approvedAmount + 1, approvedAmount, null], async () => {
         await supplierContract.customerSupply(etherToken.address, approvedAmount + 1, {from: customerAccount});
       });
 
