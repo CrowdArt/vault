@@ -6,10 +6,9 @@ Implements EIP20 token standard: https://github.com/ethereum/EIPs/issues/20
 pragma solidity ^0.4.19;
 
 import "./EIP20Interface.sol";
-import "../base/Graceful.sol";
 
 
-contract EIP20 is EIP20Interface, Graceful {
+contract EIP20 is EIP20Interface {
 
     uint256 constant private MAX_UINT256 = 2**256 - 1;
     mapping (address => uint256) public balances;
@@ -45,21 +44,9 @@ contract EIP20 is EIP20Interface, Graceful {
         return true;
     }
 
-    function foo(uint256 _value) public returns (bool success) {
-        failure("DEBUG::EIP20foo returning false immediately");
-        return false;
-    }
-
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
-        failure("DEBUG::EIP20transferFrom0 returning false immediately");
-        return false;
         uint256 allowance = allowed[_from][msg.sender];
-        failure("DEBUG::EIP20transferFrom1 allowance, balances[_from], value", uint256(balances[_from]), uint256(allowance), uint256(_value));
-        return false;
-//        require(balances[_from] >= _value && allowance >= _value);
-        if(balances[_from] < _value || allowance < _value) {
-            return false;
-        }
+        require(balances[_from] >= _value && allowance >= _value);
         balances[_to] += _value;
         balances[_from] -= _value;
         if (allowance < MAX_UINT256) {

@@ -9,21 +9,23 @@ contract('TokenStore', function(accounts) {
   var tokenStore;
   var etherToken;
 
+  var holder;
+  var recipient;
+
   beforeEach(async () => {
+
+    holder = web3.eth.accounts[0];
+    recipient = web3.eth.accounts[1];
+
     [tokenStore, etherToken] = await Promise.all([TokenStore.new(), WETH9.new()]);
-    await tokenStore.allow(web3.eth.accounts[0]);
+    await tokenStore.allow(holder);
   });
 
   describe('#transferAssetOut', () => {
     it("should transfer tokens out", async () => {
       await utils.createAndTransferWeth(tokenStore.address, etherToken, 100, web3.eth.accounts[0]);
 
-      const result = await tokenStore.transferAssetOut.call(etherToken.address, web3.eth.accounts[1], 50);
-
-      // Should exit "true"
-      assert.equal(result, true);
-
-      await tokenStore.transferAssetOut(etherToken.address, web3.eth.accounts[1], 20);
+      await tokenStore.transferAssetOut(etherToken.address, web3.eth.accounts[1], 20, {from: holder});
 
       // verify balances in W-Eth
       assert.equal(await utils.tokenBalance(etherToken, tokenStore.address), 80);
@@ -31,16 +33,19 @@ contract('TokenStore', function(accounts) {
     });
 
     it("should fail if no tokens available", async () => {
-      await utils.assertGracefulFailure(tokenStore, "TokenStore::TokenTransferToFail", async () => {
+      await utils.awaitGracefulFailureCollectMissing(assert, tokenStore, "TokenStore::TokenTransferToFail", async () => {
         await tokenStore.transferAssetOut(etherToken.address, web3.eth.accounts[1], 200);
       });
     });
 
     it("should emit event", async () => {
-      await utils.createAndTransferWeth(tokenStore.address, etherToken, 100, web3.eth.accounts[0]);
-      await tokenStore.transferAssetOut(etherToken.address, web3.eth.accounts[1], 20);
+      // deposit WETH into holder and then transfer to tokenStore.
+      await utils.createAndTransferWeth(tokenStore.address, etherToken, 100, holder);
 
-      await utils.assertEvents(tokenStore, [
+      // transfer
+      await tokenStore.transferAssetOut(etherToken.address, recipient, 20, {from: holder});
+
+      await utils.awaitAssertEventsCollectMissing(assert, tokenStore, [
       {
         event: "TransferOut",
         args: {

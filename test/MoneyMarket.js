@@ -105,12 +105,12 @@ contract('MoneyMarket', function(accounts) {
 
       // 100000 wei WETH to supplier so borrower can borrow it
       await utils.supplyEth(moneyMarket, etherToken, 100000, web3.eth.accounts[supplier]);
-      // Allocate 1000 pig tokens to borrower and approve 900 tokens to be moved into compound
+
+      // Allocate 1000 pig tokens to borrower, approve 900 tokens to be moved into compound, and then move them to compound.
       await faucetToken.allocateTo(web3.eth.accounts[borrower], 1000, {from: web3.eth.accounts[system]});
       await faucetToken.approve(moneyMarket.address, 900, {from: web3.eth.accounts[borrower]});
+      await moneyMarket.customerSupply(faucetToken.address, 900, {from: web3.eth.accounts[borrower]});
 
-      // Supply the tokens which are collateral
-      moneyMarket.customerSupply(faucetToken.address, 900, {from: web3.eth.accounts[borrower]});
       // verify balance in ledger
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[supplier], etherToken.address), 100000);
       assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[borrower], faucetToken.address), 900);
@@ -401,7 +401,7 @@ contract('MoneyMarket', function(accounts) {
   });
 
   describe('#saveBlockInterest', async () => {
-    it.only('should snapshot the current balance', async () => {
+    it('should snapshot the current balance', async () => {
       const testLedgerStorage = await TestLedgerStorage.new();
       const testBalanceSheet = await TestBalanceSheet.new();
 
@@ -412,28 +412,13 @@ contract('MoneyMarket', function(accounts) {
       await testBalanceSheet.setBalanceSheetBalance(faucetToken.address, LedgerAccount.Borrow, 150);
 
       // give supplier some tokens
-      console.log("C");
       await faucetToken.allocateTo(web3.eth.accounts[supplier], 500, {from: web3.eth.accounts[system]});
-      console.log("D");
       // Approve wallet for 100 tokens and supply them
       await faucetToken.approve(moneyMarket.address, 100, {from: web3.eth.accounts[supplier]});
-      console.log("E");
-      console.log("faucetToken.address="+faucetToken.address);
-      const foo = await faucetToken.foo.call(100);
-      assert(!foo, "foo failed");
-      console.log("E2 foo succeeded");
-
-
       await moneyMarket.customerSupply(faucetToken.address, 100, {from: web3.eth.accounts[supplier]});
-      // const supplied = await moneyMarket.customerSupply.call(faucetToken.address, 100, {from: web3.eth.accounts[supplier]});
-      // console.log("supplied="+supplied);
-      // assert(supplied, "supply failed");
-      assert(false, "THIS IS A BACKSTOP to ensure I see events when I modify customerSupply to return early");
-      console.log("F");
+
       const blockNumber = await interestRateStorage.blockInterestBlock(LedgerAccount.Supply, faucetToken.address);
-      console.log("G");
       assert.equal(await utils.toNumber(interestRateStorage.blockTotalInterest(LedgerAccount.Supply, faucetToken.address, blockNumber)), 0);
-      console.log("H");
       assert.equal(await utils.toNumber(interestRateStorage.blockInterestRate(LedgerAccount.Supply, faucetToken.address, blockNumber)), 14269406392);
     });
 

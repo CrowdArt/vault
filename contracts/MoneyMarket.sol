@@ -18,11 +18,6 @@ contract MoneyMarket is Ledger, Supplier, Borrower {
     function MoneyMarket() public {
     }
 
-
-    function foo() returns (uint8) {
-        return 1;
-    }
-
     /**
       * @notice Do not pay directly into MoneyMarket, please use `supply`.
       */

@@ -51,6 +51,7 @@ contract Supplier is Graceful, Owned, CollateralCalculator {
       * @return success or failure
       */
     function customerSupply(address asset, uint256 amount) public returns (bool) {
+
         if (!checkTokenStore()) {
             return false;
         }
@@ -69,13 +70,11 @@ contract Supplier is Graceful, Owned, CollateralCalculator {
         uint256 allowance = token.allowance(msg.sender, address(this));
         uint256 balance = token.balanceOf(msg.sender);
         bool allowed = (balance >= amount && allowance >= amount);
-        failure("DEBUG::customerSupply allowance, balance, amount", allowance, balance, amount);
 
         if(!allowed) {
             failure("Supplier::TokenTransferFromFail", uint256(asset), uint256(amount), uint256(msg.sender));
             return false;
         }
-
 
         token.transferFrom(msg.sender, address(tokenStore), amount);
 

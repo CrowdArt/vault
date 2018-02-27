@@ -65,7 +65,6 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
         ValueEquivalents memory ve = getValueEquivalents(account);
 
         uint256 ratioAdjustedBorrow = (ve.borrowValue * scaledMinCollateralToBorrowRatio)/ collateralRatioScale;
-        //failure("DEBUG::getMaxWithdrawAvailable: ratioAdjustedBorrow, ve.supplyValue", ratioAdjustedBorrow, ve.supplyValue);
         if(ratioAdjustedBorrow >= ve.supplyValue) {
             return 0;
         }
@@ -138,7 +137,6 @@ contract CollateralCalculator is Graceful, Owned, Ledger {
         if(ratioAdjustedBorrow > ve.supplyValue) {
             result = ratioAdjustedBorrow - ve.supplyValue;
         }
-        //failure("DEBUG::collateralShortfall: ratioAdjustedBorrow, ve.supplyValue, result", ratioAdjustedBorrow, ve.supplyValue, result);
         return result;
     }
 

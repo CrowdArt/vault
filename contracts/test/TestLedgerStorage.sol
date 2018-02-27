@@ -24,4 +24,32 @@ contract TestLedgerStorage {
         }
 
     }
+
+    function increaseBalanceByAmount(address customer, uint8 ledgerAccount, address asset, uint256 amount) public returns (bool) {
+
+        uint256 current = balances[customer][ledgerAccount][asset];
+        uint256 newBalance = current + amount;
+        if(newBalance < current) {
+            revert();
+        }
+        setAccountBalance(customer, ledgerAccount, asset, newBalance);
+        return true;
+    }
+
+    function decreaseBalanceByAmount(address customer, uint8 ledgerAccount, address asset, uint256 amount) public returns (bool) {
+        uint256 current = balances[customer][ledgerAccount][asset];
+        uint256 newBalance = current - amount;
+        if(newBalance > current) {
+            revert();
+        }
+        setAccountBalance(customer, ledgerAccount, asset, newBalance);
+        return true;
+    }
+
+    // WARNING: DOES NOTHING BUT RETURNS TRUE
+    function saveCheckpoint(address customer, uint8 ledgerAccount, address asset) public returns (bool) {
+        return true;
+    }
+
+
 }

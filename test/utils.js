@@ -420,13 +420,13 @@ module.exports = {
     await contract.allow(existingAllowedAccount);
   },
 
-  createAndTransferWeth: async function(transferrable, etherToken, amount, account) {
+  createAndTransferWeth: async function(destination, etherToken, amount, account) {
     await etherToken.deposit({from: account, value: amount});
-    await etherToken.transfer(transferrable, 100, {from: account});
+    await etherToken.transfer(destination, amount, {from: account});
   },
 
   supplyEth: async function(supplier, etherToken, amount, account) {
-    await createAndApproveWeth(supplier, etherToken, amount, account);
+    await createAndApproveWeth(supplier, etherToken, amount, account, amount);
     await supplier.customerSupply(etherToken.address, amount, {from: account});
   },
 
