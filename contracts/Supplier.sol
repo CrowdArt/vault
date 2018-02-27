@@ -75,11 +75,13 @@ contract Supplier is Graceful, Owned, CollateralCalculator {
             return false;
         }
 
-        token.transferFrom(msg.sender, address(tokenStore), amount);
+        if(!token.transferFrom(msg.sender, address(tokenStore), amount)) {
+            failure("Supplier::TokenTransferFromFail2");
+            return false;
+        }
 
         debit(LedgerReason.CustomerSupply, LedgerAccount.Cash, msg.sender, asset, amount);
         credit(LedgerReason.CustomerSupply, LedgerAccount.Supply, msg.sender, asset, amount);
-
         return true;
     }
 

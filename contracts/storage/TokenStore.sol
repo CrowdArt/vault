@@ -39,9 +39,11 @@ contract TokenStore is Owned, Allowed {
 			return false;
 		}
 
-        token.transfer(to, amount);
+		if(!token.transfer(to, amount)) {
+            failure("TokenStore::TokenTransferToFail2");
+			return false;
+		}
 		TransferOut(asset, to, amount);
-
 		return true;
 	}
 }
