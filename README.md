@@ -3,7 +3,7 @@
 Compound Vault
 ==============
 
-The Compound Vault holds all of the contracts used to implement the Compound protocol. Through the Money Market contract, users of the blockchain to supply capital (Ether or ERC-20 tokens) to earn interest, or borrow capital by holding collateral in the contract. The Money Market contract tracks each of these balances, a balance sheet and automatically sets interest rates.
+The Compound Vault holds all of the contracts used to implement the Compound protocol. Through the Money Market contract, users of the blockchain *supply* capital (Ether or ERC-20 tokens) to earn interest, or *borrow* capital by holding collateral in the contract. The Money Market contract tracks each of these balances, a balance sheet and automatically sets interest rates.
 
 Contracts
 =========
