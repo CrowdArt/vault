@@ -1,7 +1,7 @@
 "use strict";
 
 const BorrowStorage = artifacts.require("./storage/BorrowStorage.sol");
-const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const WETH9 = artifacts.require("./tokens/WETH9.sol");
 const FaucetToken = artifacts.require("./token/FaucetToken.sol");
 const MoneyMarket = artifacts.require("./MoneyMarket.sol");
 const PriceOracle = artifacts.require("./storage/PriceOracle.sol");
@@ -53,7 +53,7 @@ contract('Wallet', function(accounts) {
     priceOracle = await PriceOracle.deployed();
     tokenStore = await TokenStore.deployed();
     moneyMarket = await MoneyMarket.deployed();
-    etherToken = await EtherToken.deployed();
+    etherToken = await WETH9.deployed();
 
     snapshot = await utils.takeSnapshot(web3);
   });
@@ -64,7 +64,7 @@ contract('Wallet', function(accounts) {
 
   beforeEach(async () => {
     tokenStore = await TokenStore.new();
-    [etherToken, faucetToken] = await Promise.all([EtherToken.new(), FaucetToken.new()]);
+    [etherToken, faucetToken] = await Promise.all([WETH9.new(), FaucetToken.new("Pig Token", "PIG", 16)]);
 
     await moneyMarket.setTokenStore(tokenStore.address);
     await tokenStore.allow(moneyMarket.address);

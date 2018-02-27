@@ -1,8 +1,7 @@
 const MoneyMarket = artifacts.require("./MoneyMarket.sol");
-const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const WETH9 = artifacts.require("./tokens/WETH9.sol");
 const WalletFactory = artifacts.require("./WalletFactory.sol");
 
-const TokenFactory = artifacts.require("./TokenFactory.sol");
 const FaucetTokenBAT = artifacts.require("FaucetTokenBAT.sol");
 const FaucetTokenDRGN = artifacts.require("FaucetTokenDRGN.sol");
 const FaucetTokenOMG = artifacts.require("FaucetTokenOMG.sol");
@@ -26,7 +25,7 @@ const knownTokens = [
 module.exports = async function(callback) {
   const balanceSheet = await BalanceSheet.deployed()
   const borrowStorage = await BorrowStorage.deployed()
-  const etherToken = await EtherToken.deployed();
+  const etherToken = await WETH9.deployed();
   const interestModel = await InterestModel.deployed();
   const interestRateStorage = await InterestRateStorage.deployed();
   const ledgerStorage = await LedgerStorage.deployed();
@@ -39,7 +38,6 @@ module.exports = async function(callback) {
     [etherToken.address]: "eth"
   };
 
-  var tokenFactoryAddress;
 
   await Promise.all(knownTokens.map(async ([symbol, contract]) => {
     try {
@@ -49,12 +47,6 @@ module.exports = async function(callback) {
       console.log(`Faucet token ${symbol} not deployed`);
     }
   }));
-
-  try {
-    tokenFactoryAddress = (await TokenFactory.deployed()).address;
-  } catch (e) {
-    console.log("TokenFactory not deployed");
-  }
 
   process.stderr.write(JSON.stringify(
     {

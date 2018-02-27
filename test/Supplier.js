@@ -3,7 +3,7 @@
 const BigNumber = require('bignumber.js');
 
 const BalanceSheet = artifacts.require("./storage/BalanceSheet.sol");
-const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const WETH9 = artifacts.require("./tokens/WETH9.sol");
 const LedgerStorage = artifacts.require("./storage/LedgerStorage.sol");
 const InterestModel = artifacts.require("./InterestModel.sol");
 const InterestRateStorage = artifacts.require("./storage/InterestRateStorage.sol");
@@ -36,11 +36,12 @@ const LedgerAccount = {
 };
 
 contract('Supplier', function(accounts) {
-  var supplier;
+  var supplierContract;
   var etherToken;
   var tokenStore;
   var priceOracle;
   var restores;
+  var customerAccount;
 
   before(async () => {
     const balanceSheet = await BalanceSheet.deployed();
@@ -48,24 +49,26 @@ contract('Supplier', function(accounts) {
     const interestModel = await InterestModel.deployed();
     const ledgerStorage = await LedgerStorage.deployed();
 
-    supplier = await Supplier.new();
-    await supplier.setBalanceSheet(balanceSheet.address);
-    await supplier.setInterestRateStorage(interestRateStorage.address);
-    await supplier.setInterestModel(interestModel.address);
-    await supplier.setLedgerStorage(ledgerStorage.address);
+    supplierContract = await Supplier.new();
+    await supplierContract.setBalanceSheet(balanceSheet.address);
+    await supplierContract.setInterestRateStorage(interestRateStorage.address);
+    await supplierContract.setInterestModel(interestModel.address);
+    await supplierContract.setLedgerStorage(ledgerStorage.address);
 
-    restores = await utils.allowAll([balanceSheet, interestRateStorage, ledgerStorage], supplier);
+    customerAccount = web3.eth.accounts[1];
+
+    restores = await utils.allowAll([balanceSheet, interestRateStorage, ledgerStorage], supplierContract);
   });
 
   beforeEach(async () => {
-    etherToken = await EtherToken.new();
+    etherToken = await WETH9.new();
     tokenStore = await TokenStore.new();
 
-    await supplier.setTokenStore(tokenStore.address);
-    await tokenStore.allow(supplier.address);
+    await supplierContract.setTokenStore(tokenStore.address);
+    await tokenStore.allow(supplierContract.address);
 
     priceOracle = await PriceOracle.new();
-    await supplier.setPriceOracle(priceOracle.address);
+    await supplierContract.setPriceOracle(priceOracle.address);
     await utils.setAssetValue(priceOracle, etherToken, 1, web3);
 
   });
@@ -77,35 +80,36 @@ contract('Supplier', function(accounts) {
   describe('#customerSupply', () => {
     it("should increase the user's balance", async () => {
       // first supply assets into W-Eth contract
-      await utils.createAndApproveWeth(supplier, etherToken, 100, web3.eth.accounts[1]);
+      await utils.createAndApproveWeth(supplierContract, etherToken, 100, customerAccount, 100);
 
       // verify initial state
 
-      assert.equal(await utils.tokenBalance(etherToken, supplier.address), 0);
-      assert.equal(await utils.tokenBalance(etherToken, web3.eth.accounts[1]), 100);
+      assert.equal(await utils.tokenBalance(etherToken, supplierContract.address), 0);
+      assert.equal(await utils.tokenBalance(etherToken, customerAccount), 100);
 
       // commit supply in supplier
-      await supplier.customerSupply(etherToken.address, 100, {from: web3.eth.accounts[1]});
+      assert.equal(await supplierContract.customerSupply.call(etherToken.address, 100, {from: customerAccount}), true);
+      await supplierContract.customerSupply(etherToken.address, 100, {from: customerAccount});
 
       // verify balance in supplier
-      assert.equal(await utils.ledgerAccountBalance(supplier, web3.eth.accounts[1], etherToken.address), 100);
+      assert.equal(await utils.ledgerAccountBalance(supplierContract, customerAccount, etherToken.address), 100);
 
       // verify balances in W-Eth
       assert.equal(await utils.tokenBalance(etherToken, tokenStore.address), 100);
-      assert.equal(await utils.tokenBalance(etherToken, web3.eth.accounts[1]), 0);
+      assert.equal(await utils.tokenBalance(etherToken, customerAccount), 0);
     });
 
     it("should create debit and credit ledger entries", async () => {
-      await utils.supplyEth(supplier, etherToken, 100, web3.eth.accounts[1]);
+      await utils.supplyEth(supplierContract, etherToken, 100, customerAccount);
 
-      await utils.assertEvents(supplier, [
+      await utils.awaitAssertEventsCollectMissing(assert, supplierContract, [
       {
         event: "LedgerEntry",
         args: {
           ledgerReason: LedgerReason.CustomerSupply,
           ledgerType: LedgerType.Debit,
           ledgerAccount: LedgerAccount.Cash,
-          customer: web3.eth.accounts[1],
+          customer: customerAccount,
           asset: etherToken.address,
           amount: web3.toBigNumber('100'),
           balance: web3.toBigNumber('0'),
@@ -119,7 +123,7 @@ contract('Supplier', function(accounts) {
           ledgerReason: LedgerReason.CustomerSupply,
           ledgerType: LedgerType.Credit,
           ledgerAccount: LedgerAccount.Supply,
-          customer: web3.eth.accounts[1],
+          customer: customerAccount,
           asset: etherToken.address,
           amount: web3.toBigNumber('100'),
           balance: web3.toBigNumber('100'),
@@ -131,19 +135,22 @@ contract('Supplier', function(accounts) {
     });
 
     it("should only work if ERC20 properly authorized amount", async () => {
-      await utils.createAndApproveWeth(supplier, etherToken, 100, web3.eth.accounts[1], 99);
+      const approvedAmount = 99;
+      const balance = approvedAmount + 1;
+      await utils.createAndApproveWeth(supplierContract, etherToken, balance, customerAccount, approvedAmount);
 
-      await utils.assertGracefulFailure(supplier, "Supplier::TokenTransferFromFail", [null, 100, null], async () => {
-        await supplier.customerSupply(etherToken.address, 100, {from: web3.eth.accounts[1]});
+      await utils.awaitGracefulFailureCollectMissing(assert, supplierContract, "Supplier::TokenTransferFromFail", [null, approvedAmount + 1, null], async () => {
+        await supplierContract.customerSupply(etherToken.address, approvedAmount + 1, {from: customerAccount});
       });
 
-      // works okay for 99
-      await supplier.customerSupply(etherToken.address, 99, {from: web3.eth.accounts[1]});
+      // verify it works for the approved amount
+      const supplied = await supplierContract.customerSupply(etherToken.address, approvedAmount, {from: customerAccount});
+      assert(supplied, "supply of approved amount failed");
     });
 
     it("should fail for unknown assets", async () => {
       try {
-        await supplier.customerSupply(0, 100, {from: web3.eth.accounts[1]});
+        await supplierContract.customerSupply(0, 100, {from: customerAccount});
         assert.fail('should have thrown');
       } catch(error) {
         assert.equal(error.message, "VM Exception while processing transaction: revert")
@@ -154,15 +161,15 @@ contract('Supplier', function(accounts) {
   describe('#customerWithdraw', () => {
     describe('if you have enough funds', () => {
       it("should decrease the account's balance", async () => {
-        await utils.supplyEth(supplier, etherToken, 100, web3.eth.accounts[1]);
+        await utils.supplyEth(supplierContract, etherToken, 100, customerAccount);
 
-        assert.equal(await utils.ledgerAccountBalance(supplier, web3.eth.accounts[1], etherToken.address), 100);
+        assert.equal(await utils.ledgerAccountBalance(supplierContract, customerAccount, etherToken.address), 100);
 
-        await supplier.customerWithdraw(etherToken.address, 40, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
-        assert.equal(await utils.ledgerAccountBalance(supplier, web3.eth.accounts[1], etherToken.address), 60);
+        await supplierContract.customerWithdraw(etherToken.address, 40, customerAccount, {from: customerAccount});
+        assert.equal(await utils.ledgerAccountBalance(supplierContract, customerAccount, etherToken.address), 60);
 
         // verify balances in W-Eth
-        assert.equal(await utils.tokenBalance(etherToken, web3.eth.accounts[1]), 40);
+        assert.equal(await utils.tokenBalance(etherToken, customerAccount), 40);
         assert.equal(await utils.tokenBalance(etherToken, tokenStore.address), 60);
       });
 
@@ -173,13 +180,13 @@ contract('Supplier', function(accounts) {
         const withdrawalAmountBigNumber = new BigNumber(withdrawAmount);
         const startingBlockNumber = web3.eth.blockNumber;
 
-        await utils.supplyEth(supplier, etherToken, supplyAmount, web3.eth.accounts[1]);
+        await utils.supplyEth(supplierContract, etherToken, supplyAmount, customerAccount);
 
         await utils.mineBlocks(web3, 30);
 
-        await supplier.customerWithdraw(etherToken.address, withdrawAmount, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+        await supplierContract.customerWithdraw(etherToken.address, withdrawAmount, customerAccount, {from: customerAccount});
 
-        await utils.assertEvents(supplier, [
+        await utils.awaitAssertEventsCollectMissing(assert, supplierContract, [
         // Supply
         {
           event: "LedgerEntry",
@@ -187,7 +194,7 @@ contract('Supplier', function(accounts) {
               ledgerReason: LedgerReason.CustomerSupply,
               ledgerType: LedgerType.Debit,
               ledgerAccount: LedgerAccount.Cash,
-              customer: web3.eth.accounts[1],
+              customer: customerAccount,
               asset: etherToken.address,
               amount: supplyAmountBigNumber,
               balance: web3.toBigNumber('0'),
@@ -201,7 +208,7 @@ contract('Supplier', function(accounts) {
               ledgerReason: LedgerReason.CustomerSupply,
               ledgerType: LedgerType.Credit,
               ledgerAccount: LedgerAccount.Supply,
-              customer: web3.eth.accounts[1],
+              customer: customerAccount,
               asset: etherToken.address,
               amount: supplyAmountBigNumber,
               balance: supplyAmountBigNumber,
@@ -217,7 +224,7 @@ contract('Supplier', function(accounts) {
           //     ledgerReason: LedgerReason.Interest,
           //     ledgerType: LedgerType.Debit,
           //     ledgerAccount: LedgerAccount.InterestExpense,
-          //     customer: web3.eth.accounts[1],
+          //     customer: customerAccount,
           //     asset: etherToken.address,
           //     amount: web3.toBigNumber('29490101600'),
           //     balance: web3.toBigNumber('0'),
@@ -231,7 +238,7 @@ contract('Supplier', function(accounts) {
           //     ledgerReason: LedgerReason.Interest,
           //     ledgerType: LedgerType.Credit,
           //     ledgerAccount: LedgerAccount.Supply,
-          //     customer: web3.eth.accounts[1],
+          //     customer: customerAccount,
           //     asset: etherToken.address,
           //     amount: web3.toBigNumber('29490101600'),
           //     balance: web3.toBigNumber('20000029490101600'),
@@ -246,7 +253,7 @@ contract('Supplier', function(accounts) {
               ledgerReason: LedgerReason.CustomerWithdrawal,
               ledgerType: LedgerType.Debit,
               ledgerAccount: LedgerAccount.Supply,
-              customer: web3.eth.accounts[1],
+              customer: customerAccount,
               asset: etherToken.address,
               amount: withdrawalAmountBigNumber,
               balance: withdrawalAmountBigNumber,
@@ -260,7 +267,7 @@ contract('Supplier', function(accounts) {
               ledgerReason: LedgerReason.CustomerWithdrawal,
               ledgerType: LedgerType.Credit,
               ledgerAccount: LedgerAccount.Cash,
-              customer: web3.eth.accounts[1],
+              customer: customerAccount,
               asset: etherToken.address,
               amount: withdrawalAmountBigNumber,
               balance: web3.toBigNumber('0'),
@@ -277,20 +284,20 @@ contract('Supplier', function(accounts) {
         const withdrawalAmount = 40;
         const withdrawalAmountBigNumber = web3.toBigNumber(withdrawalAmount);
 
-        await utils.supplyEth(supplier, etherToken, initialBalance, web3.eth.accounts[1]);
+        await utils.supplyEth(supplierContract, etherToken, initialBalance, customerAccount);
 
-        assert.equal(await utils.ledgerAccountBalance(supplier, web3.eth.accounts[1], etherToken.address), initialBalance);
+        assert.equal(await utils.ledgerAccountBalance(supplierContract, customerAccount, etherToken.address), initialBalance);
 
-        await supplier.customerWithdraw(etherToken.address, withdrawalAmount, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+        await supplierContract.customerWithdraw(etherToken.address, withdrawalAmount, customerAccount, {from: customerAccount});
 
-        await utils.assertEvents(supplier, [
+        await utils.awaitAssertEventsCollectMissing(assert, supplierContract, [
         {
           event: "LedgerEntry",
           args: {
               ledgerReason: LedgerReason.CustomerWithdrawal,
               ledgerType: LedgerType.Debit,
               ledgerAccount: LedgerAccount.Supply,
-              customer: web3.eth.accounts[1],
+              customer: customerAccount,
               asset: etherToken.address,
               amount: withdrawalAmountBigNumber,
               balance: initialBalanceBigNumber.minus(withdrawalAmountBigNumber),
@@ -304,7 +311,7 @@ contract('Supplier', function(accounts) {
               ledgerReason: LedgerReason.CustomerWithdrawal,
               ledgerType: LedgerType.Credit,
               ledgerAccount: LedgerAccount.Cash,
-              customer: web3.eth.accounts[1],
+              customer: customerAccount,
               asset: etherToken.address,
               amount: withdrawalAmountBigNumber,
               balance: web3.toBigNumber('0'),
@@ -318,19 +325,19 @@ contract('Supplier', function(accounts) {
 
     describe("if you don't have sufficient funds", () => {
       it("generates a graceful error message for InsufficientBalance", async () => {
-        await utils.supplyEth(supplier, etherToken, 100, web3.eth.accounts[1]);
+        await utils.supplyEth(supplierContract, etherToken, 100, customerAccount);
 
         // Withdrawing 101 is an error
-        await utils.assertGracefulFailure(supplier, "Supplier::InsufficientBalance", [null, 101, null, 100], async () => {
-          await supplier.customerWithdraw(etherToken.address, 101, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+        await utils.awaitGracefulFailureCollectMissing(assert, supplierContract, "Supplier::InsufficientBalance", [null, 101, null, 100], async () => {
+          await supplierContract.customerWithdraw(etherToken.address, 101, customerAccount, {from: customerAccount});
         });
 
         // but withdrawing 100 is okay
-        await supplier.customerWithdraw(etherToken.address, 100, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+        await supplierContract.customerWithdraw(etherToken.address, 100, customerAccount, {from: customerAccount});
 
         // Withdrawing any more is an error
-        await utils.assertGracefulFailure(supplier, "Supplier::InsufficientBalance", [null, 1, null, 0], async () => {
-          await supplier.customerWithdraw(etherToken.address, 1, web3.eth.accounts[1], {from: web3.eth.accounts[1]});
+        await utils.awaitGracefulFailureCollectMissing(assert, supplierContract, "Supplier::InsufficientBalance", [null, 1, null, 0], async () => {
+          await supplierContract.customerWithdraw(etherToken.address, 1, customerAccount, {from: customerAccount});
         });
       });
     });

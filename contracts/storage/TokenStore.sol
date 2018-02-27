@@ -2,7 +2,7 @@ pragma solidity ^0.4.19;
 
 import "../base/Allowed.sol";
 import "../base/Owned.sol";
-import "../base/Token.sol";
+import "../eip20/EIP20Interface.sol";
 
 /**
   * @title The Compound Token Store Contract
@@ -30,11 +30,16 @@ contract TokenStore is Owned, Allowed {
 			return false;
 		}
 
-		if (!Token(asset).transfer(to, amount)) {
+		// EIP20Interface reverts if balance too low.  We do a pre-check to enable a graceful failure message instead.
+		EIP20Interface token = EIP20Interface(asset);
+		uint256 balance = token.balanceOf(address(this));
+
+		if(balance < amount) {
 			failure("TokenStore::TokenTransferToFail", uint256(asset), uint256(amount), uint256(to));
-            return false;
+			return false;
 		}
 
+        token.transfer(to, amount);
 		TransferOut(asset, to, amount);
 
 		return true;

@@ -7,7 +7,7 @@ import "../FaucetToken.sol";
   * @author Compound
   * @notice A simple token for test that follows faucet rules.
   */
-contract FaucetTokenZRX is FaucetToken {
+contract FaucetTokenZRX is FaucetToken("ZRX Faucet Token", "ZRX", 18) {
     string constant public name = "ZRX Faucet Token";
     string constant public symbol = "ZRX";
     uint8 constant public decimals = 18;

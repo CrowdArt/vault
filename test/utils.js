@@ -57,6 +57,7 @@ function validateRateWithMaxRatio(assert, annualBPS, actual, expected, maxRatio,
 }
 
 async function createAndApproveWeth(ledger, etherToken, amount, account, approvalAmount) {
+
   await etherToken.deposit({from: account, value: amount});
   await etherToken.approve(ledger.address, approvalAmount || amount, {from: account});
 };
@@ -188,7 +189,7 @@ async function assertGracefulFailureCollectMissing(contract, failure, failurePar
 async function awaitGracefulFailureCollectMissing(assert, contract, failure, failureParamsOrExecFn, maybeExecFn) {
 
   const problems = await assertGracefulFailureCollectMissing(contract,failure, failureParamsOrExecFn, maybeExecFn);
-  assert.equal(0, problems.length, problems.join("\n\t\t"));
+  assert.equal(problems.length, 0, problems.join("\n\t\t"));
 
 }
 
@@ -217,7 +218,7 @@ async function assertEventsCollectMissing(contract, requiredEvents, args) {
 async function awaitAssertEventsCollectMissing(assert, contract, expectedEvents, args) {
 
   const problems = await assertEventsCollectMissing(contract, expectedEvents, args);
-  assert.equal(0, problems.length, problems.join("\n\t\t"));
+  assert.equal(problems.length, 0, problems.join("\n\t\t"));
 
 }
 
@@ -419,13 +420,13 @@ module.exports = {
     await contract.allow(existingAllowedAccount);
   },
 
-  createAndTransferWeth: async function(transferrable, etherToken, amount, account) {
+  createAndTransferWeth: async function(destination, etherToken, amount, account) {
     await etherToken.deposit({from: account, value: amount});
-    await etherToken.transfer(transferrable, 100, {from: account});
+    await etherToken.transfer(destination, amount, {from: account});
   },
 
   supplyEth: async function(supplier, etherToken, amount, account) {
-    await createAndApproveWeth(supplier, etherToken, amount, account);
+    await createAndApproveWeth(supplier, etherToken, amount, account, amount);
     await supplier.customerSupply(etherToken.address, amount, {from: account});
   },
 

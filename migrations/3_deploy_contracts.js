@@ -1,7 +1,6 @@
-const EtherToken = artifacts.require("EtherToken.sol");
+const WETH9 = artifacts.require("WETH9.sol");
 const MoneyMarket = artifacts.require("MoneyMarket.sol");
 const InterestModel = artifacts.require("InterestModel.sol");
-const TokenFactory = artifacts.require("TokenFactory.sol");
 const WalletFactory = artifacts.require("WalletFactory.sol");
 
 const BalanceSheet = artifacts.require("BalanceSheet.sol");
@@ -14,14 +13,14 @@ const TokenStore = artifacts.require("TokenStore.sol");
 const MINIMUM_COLLATERAL_RATIO = 2 * 10000;
 
 async function deployAll(deployer, network) {
-  // First, deploy MoneyMarket, EtherToken and InterstModel
+  // First, deploy MoneyMarket, WETH9 and InterstModel
   await deployer.deploy(MoneyMarket);
-  await deployer.deploy(EtherToken);
+  await deployer.deploy(WETH9);
   await deployer.deploy(InterestModel);
 
   // Grab those now-deployed addresses
   const moneyMarket = await MoneyMarket.deployed();
-  const etherToken = await EtherToken.deployed();
+  const etherToken = await WETH9.deployed();
   const interestModel = await InterestModel.deployed();
 
   // Next, grab the storage contracts which were deployed in a previous migration
@@ -32,7 +31,7 @@ async function deployAll(deployer, network) {
   const priceOracle = await PriceOracle.deployed();
   const tokenStore = await TokenStore.deployed();
 
-  // Deploy the WalletFactory, which needed the MoneyMarket and EtherToken address
+  // Deploy the WalletFactory, which needed the MoneyMarket and WETH9 address
   const walletFactory = await deployer.deploy(WalletFactory, moneyMarket.address, etherToken.address);
 
   // Finally, we need to set-up our allowences and storage

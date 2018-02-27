@@ -1,6 +1,6 @@
 "use strict";
 
-const EtherToken = artifacts.require("./tokens/EtherToken.sol");
+const WETH9 = artifacts.require("./tokens/WETH9.sol");
 const MoneyMarket = artifacts.require("./MoneyMarket.sol");
 const TokenStore = artifacts.require("./storage/TokenStore.sol");
 const Wallet = artifacts.require("./Wallet.sol");
@@ -16,7 +16,7 @@ contract('WalletFactory', function(accounts) {
 
   before(async () => {
     moneyMarket = await MoneyMarket.deployed();
-    etherToken = await EtherToken.deployed();
+    etherToken = await WETH9.deployed();
     tokenStore = await TokenStore.deployed();
 
     walletFactory = await WalletFactory.new(moneyMarket.address, etherToken.address);
