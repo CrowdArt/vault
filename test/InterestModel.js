@@ -11,6 +11,41 @@ contract('InterestModel', function(accounts) {
   });
 
   describe('#getScaledSupplyRatePerBlock', async () => {
+
+    it('should return correct balance with utilization ratio of 1/3', async () => {
+      const interestRateBPS = (await interestModel.getScaledSupplyRatePerBlock.call(150, 50));
+      (await interestModel.getScaledSupplyRatePerBlock(150, 50));
+
+      utils.validateRateWithMaxRatio(assert, 333.33, interestRateBPS.toNumber(), 1585489599, 0.00000999999, "1/3");
+    });
+
+
+    it('should return correct balance with utilization ratio of 1/150', async () => {
+      const interestRateBPS = await interestModel.getScaledSupplyRatePerBlock.call(150, 0);
+
+      utils.validateRate(assert, 0, interestRateBPS.toNumber(), 0, "1/150");
+    });
+
+
+    it('should return correct balance with utilization ratio of 1/100', async () => {
+      const interestRateBPS = await interestModel.getScaledSupplyRatePerBlock.call(10000, 100);
+
+      utils.validateRate(assert, 10, interestRateBPS.toNumber(), 47564687, "1/100");
+    });
+
+    it('should return correct balance with utilization ratio of 127/100', async () => {
+      const interestRateBPS = await interestModel.getScaledSupplyRatePerBlock.call(100, 127);
+
+      utils.validateRateWithMaxRatio(assert, 1270, interestRateBPS.toNumber(), 6040715372,  0.00007, "127/100");
+    });
+
+    it('should return correct balance with utilization ratio of 127000000000000000000/100000000000000000000', async () => {
+      const interestRateBPS = await interestModel.getScaledSupplyRatePerBlock.call(100000000000000000000, 127000000000000000000);
+
+      utils.validateRateWithMaxRatio(assert, 1270, interestRateBPS.toNumber(), 6040715372, 0.0004, "127000000000000000000/100000000000000000000");
+    });
+
+
     it('should return correct rate with utilization ratio of 3/1', async () => {
       const interestRateBPS = await interestModel.getScaledSupplyRatePerBlock.call(50, 150);
 

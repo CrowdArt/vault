@@ -17,7 +17,7 @@ contract InterestModel {
     uint16 basisPointMultiplier = 10000;
     uint64 constant interestRateScale = 10 ** 17;
 
-    function getDivisionSafeSupply(uint256 supply) pure returns (uint256) {
+    function getDivisionSafeSupply(uint256 supply) public pure returns (uint256) {
         // avoid division by 0 without altering calculations in the happy path (at the cost of an extra comparison)
         if (supply == 0) {
             return 1;
@@ -32,12 +32,7 @@ contract InterestModel {
       * @return the current supply interest rate (in scale points, aka divide by 10^17 to get real rate)
       */
     function getScaledSupplyRatePerBlock(uint256 supply, uint256 borrows) public view returns (uint64) {
-        uint256 denominator = supply;
-
-        // avoid division by 0 without altering calculations in the happy path (at the cost of an extra comparison)
-        if (denominator == 0) {
-            denominator = 1;
-        }
+        uint256 divisionSafeSupply = getDivisionSafeSupply(supply);
 
         // `utilization a` = `borrows a` / `supply a`
         // `supply interest rate a` = `utilization a` * 10%
@@ -48,7 +43,7 @@ contract InterestModel {
         return uint64(
             (
             supplyRateSlopeBPS * (
-            (interestRateScale * borrows) / denominator
+            (interestRateScale * borrows) / divisionSafeSupply
             )
             ) / (blocksPerYear * basisPointMultiplier)
         );
