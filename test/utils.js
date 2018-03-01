@@ -38,7 +38,7 @@ function validateRate(assert, annualBPS, actual, expected, msg) {
 function validateRateWithMaxRatio(assert, annualBPS, actual, expected, maxRatio, msg, debug=true) {
   const blockRateDerivedFromAnnualBPS = annualBPSToScaledPerBlockRateNonTrunc(annualBPS);
 
-  const delta = expected - blockRateDerivedFromAnnualBPS;
+  const delta = actual - blockRateDerivedFromAnnualBPS;
 
   // errorRatio: How does our blockchain computed per block rate compare to the annual bps
   // that has been converted to a per block rate?
@@ -49,10 +49,10 @@ function validateRateWithMaxRatio(assert, annualBPS, actual, expected, maxRatio,
   }
 
   if (errorRatio >= maxRatio || debug) {
-    console.log(`${msg}, annualBPS=${annualBPS}, expected=${expected}, actual=${actual}, errorRatio=${errorRatio}, blockRateDerivedFromAnnualBPS=${blockRateDerivedFromAnnualBPS}`);
+    console.log(`${msg}, annualBPS=${annualBPS}, expected=${expected}, actual=${actual}, blockRateDerivedFromAnnualBPS=${blockRateDerivedFromAnnualBPS}, delta=${delta}, errorRatio=${errorRatio}`);
   }
 
-  assert.isBelow(errorRatio, maxRatio, "bad error ratio");
+  assert.isBelow(errorRatio, maxRatio, "bad error ratio on expected="+expected+", actual="+actual+", delta="+delta);
   assert.equal(actual, expected, msg);
 }
 
