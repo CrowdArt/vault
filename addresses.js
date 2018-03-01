@@ -58,7 +58,6 @@ module.exports = async function(callback) {
       "ledger_storage": ledgerStorage.address,
       "money_market": moneyMarket.address,
       "price_oracle": priceOracle.address,
-      "token_factory": tokenFactoryAddress,
       "token_store": tokenStore.address,
       "tokens": tokens,
       "wallet_factory": walletFactory.address,
