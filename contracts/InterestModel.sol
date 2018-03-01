@@ -39,7 +39,7 @@ contract InterestModel {
         // `supply interest rate a` = `borrow rate a` *`utilization a` * `1-minus-spread`
         // thus: `supply interest rate a` = `borrow rate a` * (`borrows a` / `supply a`) * `1-minus-spread`
         // when utilization exceeds 1, the supply rate can exceed the borrow rate. However, the distribution of
-        // assets across borros and supplies in such cases means that total income from borrow interest will still
+        // assets across borrows and supplies in such cases means that total income from borrow interest will still
         // exceed outlays from supply interest.
 
         // note: this is done in one-line (including re-implementation of borrowRate) since intermediate results would be truncated
