@@ -419,7 +419,7 @@ contract('MoneyMarket', function(accounts) {
 
       const blockNumber = await interestRateStorage.blockInterestBlock(LedgerAccount.Supply, faucetToken.address);
       assert.equal(await utils.toNumber(interestRateStorage.blockTotalInterest(LedgerAccount.Supply, faucetToken.address, blockNumber)), 0);
-      assert.equal(await utils.toNumber(interestRateStorage.blockInterestRate(LedgerAccount.Supply, faucetToken.address, blockNumber)), 14269406392);
+      assert.equal(await utils.toNumber(interestRateStorage.blockInterestRate(LedgerAccount.Supply, faucetToken.address, blockNumber)), 121289954337);
     });
 
     it('should be called once per block unit');

@@ -15,6 +15,7 @@ contract InterestModel {
     // Given a real number decimal, to convert it to basis points you multiply by 10000.
     // For example, we know 100 basis points = 1% = .01.  We get the basis points from the decimal: .01 * 10000 = 100
     uint16 basisPointMultiplier = 10000;
+    uint16 constant public oneMinusSpreadBPS = 8500;
     uint64 constant interestRateScale = 10 ** 17;
 
     function getDivisionSafeSupply(uint256 supply) public pure returns (uint256) {
@@ -35,18 +36,21 @@ contract InterestModel {
         uint256 divisionSafeSupply = getDivisionSafeSupply(supply);
 
         // `utilization a` = `borrows a` / `supply a`
-        // `supply interest rate a` = `utilization a` * 10%
-        // thus: `supply interest rate a` = 10% * `borrows a` / `supply a`
+        // `supply interest rate a` = `borrow rate a` *`utilization a` * `1-minus-spread`
+        // thus: `supply interest rate a` = `borrow rate a` * (`borrows a` / `supply a`) * `1-minus-spread`
+        // when utilization exceeds 1, the supply rate can exceed the borrow rate. However, the distribution of
+        // assets across borros and supplies in such cases means that total income from borrow interest will still
+        // exceed outlays from supply interest.
 
-        // note: this is done in one-line since intermediate results would be truncated
-        // should scale 10**16 / basisPointMultiplier. Do the division by blocks per year in interest rate storage
+        // note: this is done in one-line (including re-implementation of borrowRate) since intermediate results would be truncated
         return uint64(
             (
-            supplyRateSlopeBPS * (
-            (interestRateScale * borrows) / divisionSafeSupply
-            )
-            ) / (blocksPerYear * basisPointMultiplier)
-        );
+                (
+                    borrowRateSlopeBPS * (
+                        ( interestRateScale * borrows ) / divisionSafeSupply
+                    ) + ( uint256(minimumBorrowRateBPS) * interestRateScale )
+                ) * borrows * oneMinusSpreadBPS
+            ) / (divisionSafeSupply * basisPointMultiplier * blocksPerYear * basisPointMultiplier));
     }
 
     /**
@@ -58,10 +62,9 @@ contract InterestModel {
     function getScaledBorrowRatePerBlock(uint256 supply, uint256 borrows) public view returns (uint64) {
         uint256 divisionSafeSupply = getDivisionSafeSupply(supply);
 
-
         // `utilization a` = `borrows a` / `supply a`
         // `borrow interest rate a` = 10% + `utilization a` * 30%
-        // thus: `borrow interest rate a` = 10% + 10% * `borrows a` / `supply a`
+        // thus: `borrow interest rate a` = 10% + 30% * `borrows a` / `supply a`
 
         // note: this is done in one-line since intermediate results would be truncated
         return uint64(
