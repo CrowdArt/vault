@@ -19,6 +19,7 @@ contract MoneyMarket {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // module: MoneyMarket
+
     /**
       * @notice `MoneyMarket` is the core Compound MoneyMarket contract
       */
@@ -90,21 +91,6 @@ contract MoneyMarket {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // module: Owned
     address owner;
-
-    // This contract only defines a modifier but does not use
-    // it - it will be used in derived contracts.
-    // The function body is inserted where the special symbol
-    // "_;" in the definition of a modifier appears.
-    // This means that if the owner calls this function, the
-    // function is executed and otherwise, a graceful exception is
-    // thrown.
-    modifier onlyOwner {
-        if (msg.sender == owner) {
-            _;
-        } else {
-            revert();
-        }
-    }
 
     function getOwner() public view returns(address) {
         return owner;
@@ -774,8 +760,6 @@ contract MoneyMarket {
     uint16 public liquidationDiscountRateBPS = 200;
     uint16 public constant maxLiquidationDiscountRateBPS = 3000;
 
-//    function Borrower () public {}
-
     /**
       * @notice `setBorrowStorage` sets the borrow storage location for this contract
       * @dev This is for long-term data storage (TODO: Test)
@@ -1083,6 +1067,7 @@ contract MoneyMarket {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // module: easy to examine stuff for trying out truffle debug.
     // Adapted from http://truffleframework.com/tutorials/debugging-a-smart-contract
+    // This is intended to be removed before deployment to main net.
 
     uint8 myVar;
 
