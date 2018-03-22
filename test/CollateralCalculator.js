@@ -1,6 +1,6 @@
 "use strict";
 
-const CollateralCalculator = artifacts.require("./storage/CollateralCalculator.sol");
+const CollateralCalculator = artifacts.require("MoneyMarket.sol");
 const utils = require('./utils');
 
 contract('CollateralCalculator', function(accounts) {
