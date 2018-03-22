@@ -1064,6 +1064,7 @@ contract MoneyMarket {
         return (( basisPointMultiplier*discountRateScale - (unscaledDiscountRateBPS * discountRateScale)) * price) / basisPointMultiplier;
     }
 
+    // TODO: Remove the following module before deployment to main net
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // module: easy to examine stuff for trying out truffle debug.
     // Adapted from http://truffleframework.com/tutorials/debugging-a-smart-contract
