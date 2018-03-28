@@ -7,7 +7,7 @@ const WETH9 = artifacts.require("./tokens/WETH9.sol");
 const LedgerStorage = artifacts.require("./storage/LedgerStorage.sol");
 const InterestModel = artifacts.require("./InterestModel.sol");
 const InterestRateStorage = artifacts.require("./storage/InterestRateStorage.sol");
-const Supplier = artifacts.require("./MoneyMarket.sol");
+const Supplier = artifacts.require("./Supplier.sol");
 const TokenStore = artifacts.require("./storage/TokenStore.sol");
 const PriceOracle = artifacts.require("./storage/PriceOracle.sol");
 

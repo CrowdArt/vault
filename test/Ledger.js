@@ -1,6 +1,6 @@
 "use strict";
 
-const Ledger = artifacts.require("./MoneyMarket.sol");
+const Ledger = artifacts.require("./Ledger.sol");
 const WETH9 = artifacts.require("./tokens/WETH9.sol");
 const TestLedgerStorage = artifacts.require("./test/TestLedgerStorage.sol");
 const TestInterestModel = artifacts.require("./test/TestInterestModel.sol");

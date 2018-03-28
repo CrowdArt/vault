@@ -1,6 +1,6 @@
 "use strict";
 
-const Borrower = artifacts.require("./MoneyMarket.sol");
+const Borrower = artifacts.require("./Borrower.sol");
 
 contract('Borrower', function(accounts) {
   /*
