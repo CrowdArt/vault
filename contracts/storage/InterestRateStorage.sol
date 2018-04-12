@@ -21,6 +21,8 @@ contract InterestRateStorage is Owned, Allowed {
     // Block interest block is a map of LedgerAccount{Supply, Borrow} -> asset -> block number -> interest rate
     mapping(uint8 => mapping(address => mapping(uint256 => uint256))) public blockInterestRate;
 
+    event InterestRateUpdate(uint8 ledgerAccount, address asset, uint64 interestRate, uint256 totalInterest);
+
     /**
       * @notice `getCurrentBalance` returns the given balance with interest of an account
       * @param ledgerAccount the ledger account to check (i.e. supply or borrow)
@@ -94,6 +96,8 @@ contract InterestRateStorage is Owned, Allowed {
         blockInterestBlock[ledgerAccount][asset] = block.number;
         blockInterestRate[ledgerAccount][asset][block.number] = currentInterestRate;
         blockTotalInterest[ledgerAccount][asset][block.number] = totalInterest;
+
+        InterestRateUpdate(ledgerAccount, asset, currentInterestRate, totalInterest);
 
         return true;
     }

@@ -41,13 +41,19 @@ install its dependencies:
     git clone https://github.com/compound-finance/vault
     cd vault
     yarn
+    yarn global add truffle
     truffle compile
     truffle migrate
 
 Testing
 -------
 Contract tests are defined under the [test
-directory](https://github.com/compound-finance/vault/tree/master/test). To run the tests run:
+directory](https://github.com/compound-finance/vault/tree/master/test). To run the tests first run `ganache-cli` then,
+
+    yarn global add ganache-cli
+    ganache-cli
+
+run:
 
     truffle test
     
