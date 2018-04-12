@@ -2,13 +2,16 @@ const FaucetTokenBAT = artifacts.require("FaucetTokenBAT.sol");
 const FaucetTokenDRGN = artifacts.require("FaucetTokenDRGN.sol");
 const FaucetTokenOMG = artifacts.require("FaucetTokenOMG.sol");
 const FaucetTokenZRX = artifacts.require("FaucetTokenZRX.sol");
+const FaucetTokenVOL = artifacts.require("FaucetTokenVOL.sol");
 
 // BAT (decimals 10) 2500, DRGN (decimals 10) 500, OMG (decimals 18) 75, ZRX (decimals 18) 500
+// VOL (decimals 18) 100
 const tokens = [
   [ FaucetTokenBAT, 2500e18 ],
   [ FaucetTokenDRGN, 500e10 ],
   [ FaucetTokenOMG, 75e18 ],
   [ FaucetTokenZRX, 500e18 ],
+  [ FaucetTokenVOL, 100e18 ],
 ];
 
 async function deployToken(deployer, token, value) {

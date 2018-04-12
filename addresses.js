@@ -6,6 +6,7 @@ const FaucetTokenBAT = artifacts.require("FaucetTokenBAT.sol");
 const FaucetTokenDRGN = artifacts.require("FaucetTokenDRGN.sol");
 const FaucetTokenOMG = artifacts.require("FaucetTokenOMG.sol");
 const FaucetTokenZRX = artifacts.require("FaucetTokenZRX.sol");
+const FaucetTokenVOL = artifacts.require("FaucetTokenVOL.sol");
 
 const BalanceSheet = artifacts.require("./storage/BalanceSheet.sol");
 const BorrowStorage = artifacts.require("./storage/BorrowStorage.sol");
@@ -20,6 +21,7 @@ const knownTokens = [
   [ "drgn", FaucetTokenDRGN ],
   [ "omg", FaucetTokenOMG ],
   [ "zrx", FaucetTokenZRX ],
+  [ "vol", FaucetTokenVOL],
 ];
 
 module.exports = async function(callback) {
