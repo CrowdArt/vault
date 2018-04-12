@@ -65,7 +65,7 @@ To deploy the Vault contracts run:
 
     truffle deploy
 
-_© Copyright 2017 Geoffrey Hayes, Compound_
+_© Copyright 2018 Geoffrey Hayes, Compound_
 
 Discussion
 ----------
