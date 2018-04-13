@@ -153,6 +153,34 @@ contract('MoneyMarket', function(accounts) {
     });
   });
 
+  describe('#customerBorrowAndWithdraw', () => {
+    it("pays out the amount requested", async () => {
+
+      // set token value
+      await utils.setAssetValue(priceOracle, faucetToken, 10, web3);
+
+      // 100000 wei WETH to supplier so borrower can borrow it
+      await utils.supplyEth(moneyMarket, etherToken, 100000, web3.eth.accounts[supplier]);
+
+      // Allocate 1000 pig tokens to borrower, approve 900 tokens to be moved into compound, and then move them to compound.
+      await faucetToken.allocateTo(web3.eth.accounts[borrower], 1000, {from: web3.eth.accounts[system]});
+      await faucetToken.approve(moneyMarket.address, 900, {from: web3.eth.accounts[borrower]});
+      await moneyMarket.customerSupply(faucetToken.address, 900, {from: web3.eth.accounts[borrower]});
+
+      // verify balance in ledger
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[supplier], etherToken.address), 100000);
+      assert.equal(await utils.ledgerAccountBalance(moneyMarket, web3.eth.accounts[borrower], faucetToken.address), 900);
+
+      assert.equal(await utils.getAssetValue(priceOracle, faucetToken, 900), 9000);
+
+      // Finally, borrow WETH
+      await moneyMarket.customerBorrowAndWithdraw(etherToken.address, 20, web3.eth.accounts[borrower], {from: web3.eth.accounts[borrower]});
+
+      // Check wallet address of WETH
+      assert.equal(await utils.tokenBalance(etherToken, web3.eth.accounts[borrower]), 20);
+    });
+  });
+
   describe('#customerPayBorrow', () => {
     it("accrues interest and reduces the balance", async () => {
       await utils.supplyEth(moneyMarket, etherToken, 1000000000000, web3.eth.accounts[1]);
