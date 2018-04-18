@@ -75,7 +75,12 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
         }
 
         if (!saveBlockInterest(asset, LedgerAccount.Borrow)) {
-            failure("Borrower::FailedToSaveBlockInterest", uint256(asset), uint256(LedgerAccount.Borrow));
+            failure("Borrower::FailedToSaveBorrowBlockInterest", uint256(asset), uint256(LedgerAccount.Borrow));
+            return false;
+        }
+
+        if (!saveBlockInterest(asset, LedgerAccount.Supply)) {
+            failure("Borrower::FailedToSaveSupplyBlockInterest", uint256(asset), uint256(LedgerAccount.Supply));
             return false;
         }
 
@@ -110,7 +115,12 @@ contract Borrower is Graceful, Owned, CollateralCalculator {
         }
 
         if (!saveBlockInterest(asset, LedgerAccount.Borrow)) {
-            failure("Borrower::FailedToSaveBlockInterest", uint256(asset), uint256(LedgerAccount.Borrow));
+            failure("Borrower::FailedToSaveBorrowBlockInterest", uint256(asset), uint256(LedgerAccount.Borrow));
+            return false;
+        }
+
+        if (!saveBlockInterest(asset, LedgerAccount.Supply)) {
+            failure("Borrower::FailedToSaveSupplyBlockInterest", uint256(asset), uint256(LedgerAccount.Supply));
             return false;
         }
 
